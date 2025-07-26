@@ -1,0 +1,96 @@
+/* chat-history.css */
+
+:root {
+    --sidebar-width: 250px; /* Adjust if your sidebar width is different */
+    --primary-color: #1976d2; /* Example color, match this to your brand */
+}
+
+/* Main Content Area Styling */
+.main-content {
+    background-color: #f4f6f8;
+    min-height: 100vh;
+    padding-top: 1rem; /* Adjust if you have a fixed top mobile navbar */
+}
+
+
+/* Make the main layout fill the viewport height */
+.main-content, .chat-layout-container {
+    height: calc(100vh - 64px); /* Adjust 64px if you have a top navbar */
+}
+
+/* Chat list panel styling */
+.chat-list-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border-right: 1px solid #dee2e6;
+}
+
+/* Ensure list-group-item has a pointer cursor */
+.list-group-item-action {
+    cursor: pointer;
+}
+
+/* Conversation panel styling */
+.conversation-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+#chat-view-container {
+    display: flex;
+}
+
+/* Message bubble styling */
+.message-container {
+    display: flex;
+    margin-bottom: 1rem;
+}
+.message-bubble {
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    max-width: 70%;
+}
+.message-bubble .timestamp {
+    font-size: 0.75rem;
+    display: block;
+    margin-top: 0.25rem;
+    opacity: 0.7;
+}
+
+/* User's own messages */
+.user-message {
+    justify-content: flex-end; /* Align container to the right */
+}
+.user-message .message-bubble {
+    background-color: #0d6efd;
+    color: white;
+    border-bottom-right-radius: 0.25rem;
+}
+
+/* Messages from contact/bot */
+.contact-message {
+    justify-content: flex-start; /* Align container to the left */
+}
+.contact-message .message-bubble {
+    background-color: #e9ecef;
+    color: #212529;
+    border-bottom-left-radius: 0.25rem;
+}
+
+@media (min-width: 576px) {
+    .main-content {
+        margin-left: var(--sidebar-width);
+    }
+}
+
+/*
+  Mobile Layout: The sidebar is hidden by default,
+  so the main content should take up the full width.
+*/
+@media (max-width: 575.98px) {
+    .main-content {
+        margin-left: 0;
+    }
+}

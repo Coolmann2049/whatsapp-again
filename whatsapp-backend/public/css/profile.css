@@ -1,0 +1,61 @@
+/* profile.css */
+
+
+:root {
+    --sidebar-width: 250px; /* Adjust if your sidebar width is different */
+    --primary-color: #1976d2; /* Example color, match this to your brand */
+}
+
+/* Main Content Area Styling */
+.main-content {
+    background-color: #f4f6f8;
+    min-height: 100vh;
+    padding-top: 1rem; /* Adjust if you have a fixed top mobile navbar */
+}
+
+.content-wrapper {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* For loading and logged-out states */
+.state-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 80vh;
+}
+
+.profile-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background-color: #0d6efd;
+    color: white;
+    font-size: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+}
+
+/* Desktop Layout: Add left margin to the main content 
+  to make space for the visible sidebar.
+*/
+@media (min-width: 576px) {
+    .main-content {
+        margin-left: var(--sidebar-width);
+    }
+}
+
+/*
+  Mobile Layout: The sidebar is hidden by default,
+  so the main content should take up the full width.
+*/
+@media (max-width: 575.98px) {
+    .main-content {
+        margin-left: 0;
+    }
+}

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Configuration - Blulink</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <link rel="stylesheet" href="./css/sidebar.css">
+    <link rel="stylesheet" href="./css/ai-config.css">
+</head>
+<body>
+
+    <div class="d-flex">
+        <div class="sidebar-container">
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+            <div class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-title">Blulink</div>
+                    <div class="sidebar-subtitle">WhatsApp Automation</div>
+                </div>
+                
+                <nav class="sidebar-nav">
+                    <div class="nav-item">
+                        <button class="nav-link" data-page="dashboard">
+                            <i class="bi bi-columns-gap nav-icon"></i>
+                            <span class="nav-text">Dashboard</span>
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" data-page="starting-message">
+                            <i class="fas fa-comment nav-icon"></i>
+                            <span class="nav-text">Starting Message</span>
+                        </button>
+                    </div>
+                     <div class="nav-item">
+                        <button class="nav-link" data-page="ai-config">
+                            <i class="bi bi-cpu nav-icon"></i>
+                            <span class="nav-text">AI Config</span>
+                        </button>
+                    </div>
+                     <div class="nav-item">
+                        <button class="nav-link" data-page="chat-history">
+                            <i class="bi bi-clock-history nav-icon"></i>
+                            <span class="nav-text">Chat History</span>
+                        </button>
+                    </div>
+                     <div class="nav-item">
+                        <button class="nav-link" data-page="message-config">
+                            <i class="bi bi-gear-fill nav-icon"></i>
+                            <span class="nav-text">Message Config</span>
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" data-page="csv-upload">
+                            <i class="bi bi-cloud-arrow-up-fill nav-icon"></i>
+                            <span class="nav-text">CSV upload</span>
+                        </button>
+                    </div>
+                     <div class="nav-item">
+                        <button class="nav-link" data-page="profile">
+                            <i class="fas fa-user nav-icon"></i>
+                            <span class="nav-text">Profile</span>
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" data-page="devices">
+                            <i class="fas fa-mobile-alt nav-icon"></i>
+                            <span class="nav-text">Manage Devices</span>
+                        </button>
+                    </div>
+                </nav>
+            </div>
+        </div>
+
+        <main class="main-content flex-grow-1 p-4">
+            <div class="container-sm content-wrapper">
+                <div class="d-flex align-items-center mb-4">
+                    <i class="bi bi-robot me-2 h3 mb-0"></i>
+                    <h1 class="h3 mb-0">AI Configuration</h1>
+                </div>
+
+                <div class="alert alert-success d-none" role="alert" id="save-alert">
+                    Configuration saved successfully!
+                </div>
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body p-4">
+                        <h5 class="card-title mb-4">Business Information</h5>
+                        <div class="row g-3">
+                            <div class="col-12 col-sm-6">
+                                <div class="form-floating">
+                                    <input type="text" class="form-control" id="businessName" placeholder="Your Business Name">
+                                    <label for="businessName">Business Name</label>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6">
+                                <div class="form-floating">
+                                    <input type="text" class="form-control" id="industry" placeholder="e.g., E-commerce">
+                                    <label for="industry">Industry</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-floating">
+                                    <textarea class="form-control" placeholder="Describe your business" id="description" style="height: 100px"></textarea>
+                                    <label for="description">Business Description</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-floating">
+                                    <input type="text" class="form-control" id="targetAudience" placeholder="e.g., Young Professionals">
+                                    <label for="targetAudience">Target Audience</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-floating">
+                                    <input type="text" class="form-control" id="keyProducts" placeholder="e.g., SaaS Subscriptions">
+                                    <label for="keyProducts">Key Products/Services</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-floating">
+                                    <select class="form-select" id="tonePreference">
+                                        <option value="professional">Professional</option>
+                                        <option value="casual">Casual</option>
+                                        <option value="friendly">Friendly</option>
+                                        <option value="formal">Formal</option>
+                                    </select>
+                                    <label for="tonePreference">Communication Tone</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body p-4">
+                        <h5 class="card-title mb-4">AI Personality Settings</h5>
+                        <div class="px-2">
+                            <label for="formality" class="form-label">Formality Level</label>
+                            <input type="range" class="form-range" id="formality" value="50">
+                            
+                            <label for="friendliness" class="form-label mt-3">Friendliness Level</label>
+                            <input type="range" class="form-range" id="friendliness" value="50">
+
+                            <label for="creativity" class="form-label mt-3">Creativity Level</label>
+                            <input type="range" class="form-range" id="creativity" value="50">
+
+                            <label for="detail" class="form-label mt-3">Detail Level</label>
+                            <input type="range" class="form-range" id="detail" value="50">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body p-4">
+                        <h5 class="card-title mb-4">Key Phrases & Keywords</h5>
+                        <div class="form-floating">
+                            <input type="text" class="form-control" id="keyword-input" placeholder="Type a keyword and press Enter">
+                            <label for="keyword-input">Add Keywords</label>
+                        </div>
+                        <div class="form-text mb-3">Press Enter to add keywords.</div>
+                        <div id="keywords-container" class="d-flex flex-wrap gap-2">
+                            </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-lg mb-4" id="save-config-btn">
+                    <i class="bi bi-save me-2"></i>Save Configuration
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="./js/sidebar.js"></script>
+    <script src="./js/ai-config.js"></script>
+</body>
+</html>

@@ -1,0 +1,144 @@
+/* Sidebar Styles */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: var(--sidebar-width);
+    background-color: white;
+    border-right: 1px solid rgba(0, 0, 0, 0.12);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+.sidebar.show {
+    transform: translateX(0);
+}
+
+.sidebar-header {
+    padding: 1rem;
+    text-align: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    min-height: 64px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.sidebar-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
+}
+
+.sidebar-subtitle {
+    font-size: 0.875rem;
+    color: #666;
+    margin: 0;
+}
+
+.sidebar-nav {
+    padding: 0.5rem;
+}
+
+.nav-item {
+    margin-bottom: 0.25rem;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    color: #333;
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.nav-link:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+    color: #333;
+}
+
+.nav-link.active {
+    background-color: rgba(25, 118, 210, 0.08);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.nav-link.active:hover {
+    background-color: rgba(25, 118, 210, 0.12);
+}
+
+.nav-icon {
+    margin-right: 1rem;
+    width: 20px;
+    text-align: center;
+}
+
+.nav-link.active .nav-icon {
+    color: var(--primary-color);
+}
+
+/* Mobile App Bar */
+.mobile-navbar {
+    background-color: var(--primary-color);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1100;
+    display: block;
+}
+
+.mobile-navbar .navbar-brand {
+    color: white;
+    font-weight: 500;
+}
+
+.mobile-menu-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.25rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.mobile-menu-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Overlay for mobile */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    display: none;
+}
+
+.sidebar-overlay.show {
+    display: block;
+}
+
+/* Desktop styles */
+@media (min-width: 576px) {
+    .mobile-navbar {
+        display: none;
+    }
+
+    .sidebar {
+        transform: translateX(0);
+    }
+}
