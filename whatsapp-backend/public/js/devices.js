@@ -1,9 +1,29 @@
-let devices = [{
+let devices = [
+    {
         id: 1,
         name: 'Primary Phone',
         status: 'connected',
-        lastActive: '2024-01-20 14:30'
-    }];
+        phone: '1234567890'
+    },
+    {
+        id: 2,
+        name: 'Primary Phone',
+        status: 'connected',
+        phone: '1234567890'
+    },
+    {
+        id: 3,
+        name: 'Primary Phone',
+        status: 'connected',
+        phone: '1234567890'
+    },
+    {
+        id: 4,
+        name: 'Primary Phone',
+        status: 'connected',
+        phone: '1234567890'
+    }
+];
 let selectedDevice = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -17,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 function handleSendTestMessage  () {
-    const testMessageModal = new bootstrap.Modal(document.getElementById('testMessageModal'));
+    const testMessageModal = bootstrap.Modal.getInstance(document.getElementById('testMessageModal'));
     const testNumberInput = document.getElementById('test-number');
     const testMessageInput = document.getElementById('test-message');
 
@@ -30,31 +50,87 @@ function handleSendTestMessage  () {
     }
 
     console.log(`Sending to ${number}: "${message}" from device ID ${selectedDevice.id}`);
-    showAlert('Test message sent successfully!');
-    testMessageModal.hide();
-    testNumberInput.value = '';
-    testMessageInput.value = '';
+    sendTestMessage(selectedDevice.id, number, message).then(() => {
+        showAlert('Test message sent successfully!');
+        testMessageModal.hide();
+        testNumberInput.value = '';
+        testMessageInput.value = '';
+
+        selectedDevice=null;
+    }).catch((error) => {
+        showAlert(error.message, 'danger');
+    });
 }
 
-const handleListActions = (e) => {
-    const testMessageModal = new bootstrap.Modal(document.getElementById('testMessageModal'));
+async function sendTestMessage(deviceId, number, message) {
+    // The endpoint path includes the deviceId as a URL parameter
+    const apiUrl = `/api/whatsapp/send-test-message/${deviceId}`;
+
+    const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        // The number and message are sent in the body
+        body: JSON.stringify({ number, message }),
+    });
+
+    // Check if the server responded with an error
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to send message.');
+    }
+
+    // Return the successful response data
+    return response.json();
+}
+
+const handleListActions = async (e) => {
+    const testMessageModal = bootstrap.Modal.getInstance(document.getElementById('testMessageModal'));
     const target = e.target.closest('button');
     if (!target) return;
     
-    const deviceId = parseInt(target.dataset.id);
-
+    // It's good practice to get the ID as a string and use it as such
+    const deviceId = target.dataset.id;
     if (target.classList.contains('btn-delete')) {
-        if (confirm('Are you sure you want to remove this device?')) {
-            devices = devices.filter(d => d.id !== deviceId);
-            renderDevices();
-            showAlert('Device removed successfully!');
+        // Find the device object *before* deleting, to use its name in alerts
+        const deviceToDelete = devices.find(d => d.id == deviceId);
+        if (!deviceToDelete) return;
+        console.log(deviceToDelete);
+        if (confirm(`Are you sure you want to remove "${deviceToDelete.name}"?`)) {
+            try {
+                // 1. Make the API call to the backend first
+                const response = await fetch(`/api/whatsapp/delete-device/${deviceId}`, {
+                    method: 'DELETE',
+                });
+
+                // 2. Check if the server responded with an error
+                if (!response.ok) {
+                    // If the server returns an error, show it and stop
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Server error');
+                }
+
+                // 3. Only if the API call is successful, update the frontend
+                devices = devices.filter(d => d.id != deviceId);
+                renderDevices();
+                showAlert('Device removed successfully!');
+
+            } catch (error) {
+                console.error('Failed to delete device:', error);
+                showAlert(`Error: ${error.message}`, 'danger');
+            }
         }
     } else if (target.classList.contains('btn-test')) {
-        selectedDevice = devices.find(d => d.id === deviceId);
-        testMessageModal.show();
+        const selectedDevice = devices.find(d => d.id == deviceId);
+        // Add a check to ensure the device was found
+        if (selectedDevice) {
+            // You might want to populate the modal with the device name here
+            document.getElementById('test-modal-device-name').textContent = selectedDevice.name;
+            testMessageModal.show();
+        }
     }
 };
-
 async function renderDevices() {
     const devicesListContainer = document.getElementById('devicesListContainer');
 
@@ -94,8 +170,8 @@ async function renderDevices() {
                                     ${device.status.charAt(0).toUpperCase() + device.status.slice(1)}
                                 </span>
                                 <small class="text-muted">
-                                    <i class="bi bi-clock me-1"></i>
-                                    Last active: ${device.lastActive}
+                                    <i class="bi bi-telephone me-1"></i>
+                                    Phone Number: ${device.phone}
                                 </small>
                             </div>
                         </div>
@@ -171,10 +247,67 @@ async function intializeSocket() {
     });
 
     // Listen for the QR code update from the server
-    socket.on('qr-code-update', (data) => {
+    socket.on('qr-code-initialized', (data) => {
         console.log('New QR code received from server.');
-        
-        qrCodeContainer.textContent = `QR Code Data Received: ${data.qr.substring(0, 30)}...`;
+        const qrCodeStatus = document.getElementById('qr-code-status');
+        if (qrCodeStatus) {
+            qrCodeStatus.textContent = 'Fetching new QR code';
+        }
+    });
+
+    socket.on('qr-code-update', (data) => 
+        {
+        console.log('New QR code received from server.');
+        const qrCodeStatus = document.getElementById('qr-code-status');
+        if (qrCodeStatus) {
+            qrCodeStatus.textContent = 'Waiting for device connection...';
+        }
+
+        const qrCodePlaceholder = document.getElementById('qrCodePlaceholder');
+        qrCodePlaceholder.classList.remove('qr-code-placeholder');
+        qrCodePlaceholder.innerHTML = '';
+        // Generate the new QR code from the data string
+        new QRCode(qrCodePlaceholder, {
+            text: data.qrCode,
+            width: 256,
+            height: 256,
+        });
+    });
+
+    socket.on('qr-code-initialized', (data) => {
+        console.log('Fetching new QR code.');
+        const qrCodeStatus = document.getElementById('qr-code-status');
+        if (qrCodeStatus) {
+            qrCodeStatus.textContent = 'Fetching new QR code';
+        }
+    });
+
+    socket.on('device-update', (data) => {
+        console.log('Recieved new device details after logging in.');
+
+         const newDevice = {
+            id: data.id,
+            name: data.name,
+            status: data.status,
+            phone: data.phone
+        };
+        devices.push(newDevice);
+        renderDevices();
+
+        //Reset the modal
+        const pairingBtnText = document.getElementById('pairing-btn-text');
+        const pairingInitialState = document.getElementById('pairing-initial-state');
+        const pairingActiveState = document.getElementById('pairing-active-state');
+        const pairDeviceModal = bootstrap.Modal.getInstance(document.getElementById('pairDeviceModal'));
+
+        startPairingBtn.disabled = false;
+        pairingBtnText.textContent = 'Start Pairing';
+        startPairingBtn.querySelector('.spinner-border').classList.add('d-none');
+        pairingInitialState.classList.remove('d-none');
+        pairingActiveState.classList.add('d-none');
+
+        pairDeviceModal.hide();
+        showAlert('Device paired successfully!');
     });
 
     
@@ -183,32 +316,26 @@ async function intializeSocket() {
     const startPairingBtn = document.getElementById('start-pairing-btn');
     if (startPairingBtn) {
         startPairingBtn.addEventListener('click', () => {
+
+            if (devices.length >= 4) {
+                showAlert('Maximum number of devices (4) reached. Please remove a device first.', 'danger');
+                return;
+            }
+
             socket.emit('request-new-qr');
             handlePairDevice();
         });
     }
 
-    if (connectButton) {
-        connectButton.addEventListener('click', () => {
-            console.log('Requesting a new QR code from the server...');
-            qrCodeContainer.style.display = 'block';
-            qrCodeContainer.textContent = 'Generating QR Code...';
-            
-            // 2. Tell the server we are ready for a new QR code
-            socket.emit('request-new-qr');
-        });
-    }
 }
 
 
 async function handlePairDevice () {
-    console.log('fuck me');
     if (devices.length >= 4) {
         showAlert('Maximum number of devices (4) reached. Please remove a device first.', 'danger');
         return;
     }
 
-    const pairDeviceModal = bootstrap.Modal.getInstance(document.getElementById('pairDeviceModal'));
     const startPairingBtn = document.getElementById('start-pairing-btn');
     const pairingBtnText = document.getElementById('pairing-btn-text');
     const pairingInitialState = document.getElementById('pairing-initial-state');
@@ -220,28 +347,6 @@ async function handlePairDevice () {
 
     pairingInitialState.classList.add('d-none');
     pairingActiveState.classList.remove('d-none');
-        
-    // Simulate pairing process
-    // setTimeout(() => {
-    //     const newDevice = {
-    //         id: Date.now(),
-    //         name: `Device ${devices.length + 1}`,
-    //         status: 'connected',
-    //         lastActive: new Date().toLocaleString()
-    //     };
-    //     devices.push(newDevice);
-    //     renderDevices();
-
-    //     // Reset modal
-    //     startPairingBtn.disabled = false;
-    //     pairingBtnText.textContent = 'Start Pairing';
-    //     startPairingBtn.querySelector('.spinner-border').classList.add('d-none');
-    //     pairingInitialState.classList.remove('d-none');
-    //     pairingActiveState.classList.add('d-none');
-
-    //     pairDeviceModal.hide();
-    //     showAlert('Device paired successfully!');
-    // }, 3000);
 }
 
 

@@ -1,11 +1,23 @@
+const dotenv = require('dotenv');
+const { UserID } = require('./models');
+
+// Load environment variablFVes
+dotenv.config();
+
+
 function initializeSocket(io) {
     // This function sets up all the real-time connection logic.
-    io.on('connection', (socket) => {
+    io.on('connection', async (socket) => {
         // Check for authentication via the session attached by the middleware
         const userSession = socket.request.session;
-
         if (userSession && userSession.userId) {
+
+
+            const userId = userSession.userId;
             const email = userSession.email;
+
+            const user = await UserID.findByPk(userId);
+
             console.log(`✅ User connected via WebSocket: ${email}`);
             
             // Join a room named after the user. This is crucial for sending targeted messages.
@@ -19,10 +31,37 @@ function initializeSocket(io) {
             socket.on('request-new-qr', () => {
                 console.log(`User ${email} is requesting a new QR code.`);
 
-                socket.emit('qr-code-update', '123456');
-                console.log('done');
-            });
+                if (user.count > 4) {
+                    socket.emit('qr-request-error', { message: 'Max device limit of 4 reached' });
+                    return;
+                }
 
+                fetch(`${process.env.VPS_URL}/api/initialize-session`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        clientId: `${userId}_${email}_${user.count}`,
+                        vpsAuthKey: process.env.VPS_KEY,
+                    }),
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(data); 
+                    socket.emit('qr-code-initialized', "Initialization process started");
+
+                })
+                .catch(error => {
+                    console.error('Error fetching QR code:', error);
+                    socket.emit('qr-request-error', { message: 'Failed to initialize session' });
+                });
+            });
         } else {
             console.warn(`⚠️ Unauthenticated socket connection attempt rejected.`);
             socket.disconnect(true);

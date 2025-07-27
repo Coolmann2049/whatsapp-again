@@ -127,12 +127,12 @@
                     </div>
                     <div id="pairing-active-state" class="d-none">
                         <p>Scan this QR code with WhatsApp</p>
-                        <div class="qr-code-placeholder mx-auto mb-3">
+                        <div class="qr-code-placeholder mx-auto mb-3" id="qrCodePlaceholder">
                             <i class="bi bi-qr-code display-1"></i>
                         </div>
                         <div class="d-flex align-items-center justify-content-center text-muted">
                             <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                            <span>Waiting for device connection...</span>
+                            <span id="qr-code-status">Waiting for device connection...</span>
                         </div>
                     </div>
                 </div>

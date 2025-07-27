@@ -31,6 +31,16 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(255),
       allowNull: true
     },
+    count: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue : 1
+    },
+    devices_data: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+      defaultValue : ''
+    },
     profile_photo_url: {
       type: DataTypes.STRING(255),
       allowNull: true

@@ -20,6 +20,11 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(compression());
 
+app.get('/', (req, res) => {
+  res.json({ message: 'Welcome to the whatsapp backend API' });
+});
+
+
 function vpsAuthMiddleware(req, res, next) {
     // 1. Get the secret key from the request header. A common practice is to use a custom 'X-' header.
     const providedKey = req.vps_auth_key;

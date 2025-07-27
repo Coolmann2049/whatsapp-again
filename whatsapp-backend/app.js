@@ -59,13 +59,22 @@ io.use((socket, next) => {
 // Import routers 
 const pageRoutes = require('./routes/pageRoutes');
 const user = require('./routes/user');
+const whatsapp = require('./routes/whatsapp');
+const webhook = require('./routes/webhook');
 
 // Page routes
 app.use('/', pageRoutes);
 
+
+app.use((req, res, next) => {
+    req.io = io;
+    next();
+});
+
 // API Routes
 app.use('/api/user', user);
-
+app.use('/api/whatsapp', whatsapp);
+app.use('/api/webhook', webhook);
 
 // Initialize database and start server
 initializeDatabase().then(() => {

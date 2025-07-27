@@ -7,7 +7,7 @@ const streamifier = require('streamifier');
 const { UserID } = require('../models');
 const dotenv = require('dotenv');
 
-// Load environment variables
+// Load environment variablFVes
 dotenv.config();
 
 // 1. Configure Cloudinary
@@ -66,7 +66,7 @@ router.post('/profile-photo', upload.single('profilePhoto'), async (req, res) =>
 
     // Update the user's record in your database with the new URL
     // // (Assuming you have user ID from an authenticated session)
-    const userId = req.user.userId; 
+    const userId = req.session.userId; 
     await UserID.update({ profile_photo_url: photoUrl }, { where: { userId: userId } });
     
     // Send a success response
