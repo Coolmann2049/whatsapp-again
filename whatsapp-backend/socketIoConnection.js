@@ -49,10 +49,10 @@ function initializeSocket(io) {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    return response
+                    return response.json();
                 })
                 .then(data => {
-                    console.log(data); 
+                    console.log(data.message); 
                     socket.emit('qr-code-initialized', "Initialization process started");
 
                 })

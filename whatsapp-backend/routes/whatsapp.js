@@ -38,14 +38,14 @@ router.delete('/delete-device/:deviceId', async (req, res) => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return response.json();
+            return response;
         })
         .then(data => {
             console.log(data); 
             res.status(200).json('Device deleted successfully')
         })
         .catch(error => {
-            console.error('Error fetching QR code:', error);
+            console.error('Error disconnecting device:', error);
         });
     } catch (error) {
         console.error('Delete device error:', error);

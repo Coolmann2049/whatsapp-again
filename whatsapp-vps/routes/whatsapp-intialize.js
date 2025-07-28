@@ -61,7 +61,7 @@ function initializeClient(clientId) {
 
         const userName = client.info.pushname;
         const userPhone = client.info.wid.user;
-        
+
         axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
             clientId, 
             status: 'disconnected',
@@ -108,6 +108,8 @@ async function sendTestMessage(client, number, message) {
 // --- API Endpoint to create new instances ---
 
 router.post('/initialize-session', (req, res) => {
+
+    console.log('reached to this shit');
     const { clientId } = req.body;
     if (!clientId) {
         return res.status(400).send('clientId is required.');
@@ -117,7 +119,7 @@ router.post('/initialize-session', (req, res) => {
     }
 
     initializeClient(clientId);
-    res.status(200).send('Initialization process started.');
+    res.status(200).send({'message':'Initialization process started.'});
 });
 
 
@@ -132,6 +134,20 @@ router.post('/disconnect-session', async (req, res) => {
     const client = activeClients[clientId];
     if (client) {
         console.log(`[${clientId}] Disconnection requested. Logging out...`);
+
+        const userName = client.info.pushname;
+        const userPhone = client.info.wid.user;
+        
+        axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
+            clientId, 
+            status: 'disconnected',
+            userName,
+            userPhone,
+            auth: process.env.VPS_KEY
+        });
+
+        // Clean up the disconnected client
+        delete activeClients[clientId];
         // This will trigger the 'disconnected' event listener automatically
         await client.destroy();
 
