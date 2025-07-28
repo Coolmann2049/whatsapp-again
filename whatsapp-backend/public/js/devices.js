@@ -1,29 +1,4 @@
-let devices = [
-    {
-        id: 1,
-        name: 'Primary Phone',
-        status: 'connected',
-        phone: '1234567890'
-    },
-    {
-        id: 2,
-        name: 'Primary Phone',
-        status: 'connected',
-        phone: '1234567890'
-    },
-    {
-        id: 3,
-        name: 'Primary Phone',
-        status: 'connected',
-        phone: '1234567890'
-    },
-    {
-        id: 4,
-        name: 'Primary Phone',
-        status: 'connected',
-        phone: '1234567890'
-    }
-];
+let devices = [];
 let selectedDevice = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -246,6 +221,10 @@ async function intializeSocket() {
         console.log('Disconnected from the server.');
     });
 
+    socket.on('device-data', (data) => {
+        devices.push(data);
+        renderDevices();
+    });
     // Listen for the QR code update from the server
     socket.on('qr-code-initialized', (data) => {
         console.log('New QR code received from server.');

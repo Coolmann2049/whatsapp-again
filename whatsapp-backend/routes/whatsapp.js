@@ -89,6 +89,19 @@ router.post('/send-test-message/:deviceId', async (req, res) => {
         console.error('Error sending message:', error);
         res.status(500).json({ message: 'Internal server error' });
     });
-})
+});
+
+router.get('/get-device-data', async (req, res) => {
+
+    const userId = req.session.userId;
+
+    const user = await UserID.findByPk(userId);
+    if (!user) {
+        return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const devices = JSON.parse(user.devices_data);
+    res.status(200).json(devices);
+});
 
 module.exports = router;

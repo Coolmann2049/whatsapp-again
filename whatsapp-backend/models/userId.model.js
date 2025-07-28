@@ -39,7 +39,7 @@ module.exports = (sequelize) => {
     devices_data: {
       type: DataTypes.TEXT,
       allowNull: true,
-      defaultValue : ''
+      defaultValue : '[]'
     },
     profile_photo_url: {
       type: DataTypes.STRING(255),

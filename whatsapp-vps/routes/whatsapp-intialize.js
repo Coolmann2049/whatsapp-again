@@ -35,7 +35,7 @@ function initializeClient(clientId) {
     client.on('qr', (qr) => {
         console.log(`[${clientId}] QR Code received. Sending to Main Backend.`);
         // Send the QR code back to your Main Backend to be relayed to the frontend
-        axios.post(`${MAIN_BACKEND_URL}/qr-update`, { clientId, qrCode: qr, auth: process.env.VPS_KEY });
+        axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-qr-update`, { clientId, qrCode: qr, auth: process.env.VPS_KEY });
     });
 
     client.on('ready', () => {

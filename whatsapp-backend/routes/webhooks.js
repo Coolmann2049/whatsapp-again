@@ -61,11 +61,32 @@ router.post('/whatsapp-status-update', async (req, res) => {
 
         if (status === 'connected') {
             user.count = count++;
+
+            const deviceData = {
+                id: count,
+                name: userName,
+                status,
+                phone: userPhone
+            };
+            let devices = JSON.parse(user.devices_data);
+            devices.push(deviceData);
+            user.devices_data = JSON.stringify(devices);
+            
             await user.save();
 
-            
         } else if (status === 'disconnected') {
             user.count = count--;
+
+            const deviceData = {
+                id: count,
+                name: userName,
+                status,
+                phone: userPhone
+            };
+            let devices = JSON.parse(user.devices_data);
+            devices = devices.filter(device => device.id !== deviceData.id);
+            user.devices_data = JSON.stringify(devices);
+
             await user.save();
         }
 

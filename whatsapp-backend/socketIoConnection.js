@@ -23,6 +23,11 @@ function initializeSocket(io) {
             // Join a room named after the user. This is crucial for sending targeted messages.
             socket.join(email);
 
+            socket.emit('device-data', async () => {
+                const devices = JSON.parse(user.devices_data);
+                return devices;
+            });
+
             socket.on('disconnect', () => {
                 console.log(`❌ User disconnected: ${email}`);
             });
@@ -43,14 +48,14 @@ function initializeSocket(io) {
                     },
                     body: JSON.stringify({ 
                         clientId: `${userId}_${email}_${user.count}`,
-                        vpsAuthKey: process.env.VPS_KEY,
+                        auth: process.env.VPS_KEY,
                     }),
                 })
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    return response.json();
+                    return response
                 })
                 .then(data => {
                     console.log(data); 
