@@ -60,7 +60,7 @@ io.use((socket, next) => {
 const pageRoutes = require('./routes/pageRoutes');
 const user = require('./routes/user');
 const whatsapp = require('./routes/whatsapp');
-const webhook = require('./routes/webhook');
+const webhook = require('./routes/webhooks');
 
 // Page routes
 app.use('/', pageRoutes);
