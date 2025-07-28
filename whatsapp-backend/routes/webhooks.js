@@ -60,8 +60,8 @@ router.post('/whatsapp-status-update', async (req, res) => {
         }
 
         if (status === 'connected') {
-            user.count = count++;
-
+            user.count = count+1;
+            
             const deviceData = {
                 id: count,
                 name: userName,
@@ -69,14 +69,18 @@ router.post('/whatsapp-status-update', async (req, res) => {
                 phone: userPhone
             };
             let devices = JSON.parse(user.devices_data);
+            
             devices.push(deviceData);
             user.devices_data = JSON.stringify(devices);
-            
+
+            console.log(devices);
+
             await user.save();
+            
+            console.log(user);
 
         } else if (status === 'disconnected') {
-            user.count = count--;
-
+            user.count = count-1;
             const deviceData = {
                 id: count,
                 name: userName,
@@ -90,13 +94,15 @@ router.post('/whatsapp-status-update', async (req, res) => {
             await user.save();
         }
 
+        const io = req.io;                    // Access the io instance
+
         io.to(email).emit('device-update', { 
             id: count,
             status,
             name: userName,
             phone: userPhone
         });
-
+        console.log ('yay');
         res.status(200).json({ message: 'Status updated successfully' });
 
 

@@ -42,12 +42,10 @@ function initializeClient(clientId) {
         console.log(`[${clientId}] Client is ready!`);
 
         // Access information about the logged-in account
-        console.log(client);
+        const userName = client.info.pushname;
+        const userPhone = client.info.wid.user;
 
-        const userInfo = client.info;
-        const userName = userInfo.pushname;
-        const userPhone = userInfo.me.user;
-
+        console.log(userName , userPhone);
         // Notify the Main Backend that the connection is successful
         axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
             clientId, 
@@ -60,6 +58,10 @@ function initializeClient(clientId) {
 
     client.on('disconnected', (reason) => {
         console.log(`[${clientId}] Client was logged out. Reason:`, reason);
+
+        const userName = client.info.pushname;
+        const userPhone = client.info.wid.user;
+        
         axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
             clientId, 
             status: 'disconnected',

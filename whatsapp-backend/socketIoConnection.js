@@ -12,7 +12,6 @@ function initializeSocket(io) {
         const userSession = socket.request.session;
         if (userSession && userSession.userId) {
 
-
             const userId = userSession.userId;
             const email = userSession.email;
 
@@ -22,11 +21,6 @@ function initializeSocket(io) {
             
             // Join a room named after the user. This is crucial for sending targeted messages.
             socket.join(email);
-
-            socket.emit('device-data', async () => {
-                const devices = JSON.parse(user.devices_data);
-                return devices;
-            });
 
             socket.on('disconnect', () => {
                 console.log(`❌ User disconnected: ${email}`);

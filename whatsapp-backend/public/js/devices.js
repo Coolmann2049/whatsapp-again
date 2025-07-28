@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setupEventListeners();
 
+    initializeDeviceData();
+
     renderDevices();
 });
 
@@ -206,6 +208,16 @@ function setupEventListeners() {
     }
 }
 
+async function initializeDeviceData() {
+    const response = await fetch('/api/user/devices');
+    if (!response.ok) {
+        throw new Error('Failed to fetch devices');
+    }
+    let devicesData = await response.json();
+    devices = devicesData.devices;
+    renderDevices();
+}
+
 async function intializeSocket() {
 
     // 1. This line initiates the connection as soon as the page loads
@@ -222,9 +234,11 @@ async function intializeSocket() {
     });
 
     socket.on('device-data', (data) => {
-        devices.push(data);
+        console.log(data);
+        devices = data;
         renderDevices();
     });
+
     // Listen for the QR code update from the server
     socket.on('qr-code-initialized', (data) => {
         console.log('New QR code received from server.');
