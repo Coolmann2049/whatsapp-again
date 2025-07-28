@@ -31,7 +31,7 @@ router.delete('/delete-device/:deviceId', async (req, res) => {
             },
             body: JSON.stringify({ 
                 clientId: clientId,
-                vpsAuthKey: process.env.VPS_KEY,
+                auth: process.env.VPS_KEY,
             }),
         })
         .then(response => {
@@ -72,7 +72,7 @@ router.post('/send-test-message/:deviceId', async (req, res) => {
             number: number,
             message: message,
             clientId: clientId,
-            vpsAuthKey: process.env.VPS_KEY,
+            auth: process.env.VPS_KEY,
         }),
     })
     .then(response => {

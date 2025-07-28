@@ -27,7 +27,7 @@ app.get('/', (req, res) => {
 
 function vpsAuthMiddleware(req, res, next) {
     // 1. Get the secret key from the request header. A common practice is to use a custom 'X-' header.
-    const providedKey = req.vps_auth_key;
+    const providedKey = req.auth;
     const expectedKey = process.env.VPS_KEY;
     if (!expectedKey) {
         console.error('FATAL: VPS_KEY environment variable is not set on the worker.');
