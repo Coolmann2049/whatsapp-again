@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setupEventListeners();
 
-    initializeDeviceData();
+    initializeData();
 
     renderDevices();
 });
@@ -63,7 +63,11 @@ async function sendTestMessage(deviceId, number, message) {
 }
 
 const handleListActions = async (e) => {
-    const testMessageModal = bootstrap.Modal.getInstance(document.getElementById('testMessageModal'));
+
+    
+    const testMessageModalElement = document.getElementById('testMessageModal');
+    const testMessageModal = bootstrap.Modal.getInstance(testMessageModalElement);
+
     const target = e.target.closest('button');
     if (!target) return;
     
@@ -99,16 +103,16 @@ const handleListActions = async (e) => {
             }
         }
     } else if (target.classList.contains('btn-test')) {
-        const selectedDevice = devices.find(d => d.id == deviceId);
+        selectedDevice = devices.find(d => d.id == deviceId);
         // Add a check to ensure the device was found
         if (selectedDevice) {
             // You might want to populate the modal with the device name here
-            document.getElementById('test-modal-device-name').textContent = selectedDevice.name;
             testMessageModal.show();
         }
     }
 };
 async function renderDevices() {
+    
     const devicesListContainer = document.getElementById('devicesListContainer');
 
     if (!devicesListContainer) {
@@ -208,7 +212,10 @@ function setupEventListeners() {
     }
 }
 
-async function initializeDeviceData() {
+async function initializeData() {
+
+    const testMessageModalEl = document.getElementById('testMessageModal');
+    const testMessageModal = new bootstrap.Modal(testMessageModalEl);
     const response = await fetch('/api/user/devices');
     if (!response.ok) {
         throw new Error('Failed to fetch devices');

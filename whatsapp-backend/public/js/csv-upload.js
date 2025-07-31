@@ -1,58 +1,40 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- STATE & DATA ---
-    let files = [{
-        id: 1,
-        name: 'contacts_list_1.csv',
-        status: 'completed',
-        total: 150,
-        processed: 150,
-        date: '2023-07-20',
-    }, {
-        id: 2,
-        name: 'new_leads.csv',
-        status: 'processing',
-        total: 200,
-        processed: 120,
-        date: '2023-07-21',
-    }, ];
+    let files = []; // This will be populated from the server
 
     // --- DOM REFERENCES ---
     const fileListBody = document.getElementById('file-list-body');
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('csv-upload-input');
-    const previewModalTitle = document.getElementById('previewModalTitle');
 
     // --- HELPER FUNCTIONS ---
     const getStatusBadge = (status) => {
         const colors = {
             completed: 'success',
             processing: 'warning',
-            error: 'danger',
-            pending: 'secondary'
+            failed: 'danger'
         };
-        return `<span class="badge bg-${colors[status] || 'light'}">${status}</span>`;
+        const sanitizedStatus = (status || 'unknown').toLowerCase();
+        return `<span class="badge bg-${colors[sanitizedStatus] || 'secondary'}">${status}</span>`;
     };
 
-    // --- RENDER FUNCTION ---
+    // --- RENDER FUNCTION (Updated) ---
     const renderFiles = () => {
         fileListBody.innerHTML = ''; // Clear table
+        if (files.length === 0) {
+            fileListBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-4">No upload history found.</td></tr>`;
+            return;
+        }
+
         files.forEach(file => {
-            const progressPercent = file.total > 0 ? (file.processed / file.total) * 100 : 0;
             const rowHtml = `
                 <tr>
-                    <td>${file.name}</td>
-                    <td>${file.date}</td>
+                    <td>${file.file_name || 'N/A'}</td>
+                    <td>${new Date(file.upload_date || Date.now()).toLocaleDateString()}</td>
                     <td>${getStatusBadge(file.status)}</td>
-                    <td>
-                        <div class="progress" style="height: 10px;">
-                            <div class="progress-bar" role="progressbar" style="width: ${progressPercent}%" aria-valuenow="${progressPercent}" aria-valuemin="0" aria-valuemax="100"></div>
-                        </div>
-                        <small class="text-muted">${file.processed} / ${file.total} rows</small>
-                    </td>
+                    <td>${file.total_contacts || 0}</td>
                     <td class="text-end">
-                        <button class="btn btn-sm btn-outline-secondary btn-preview" data-id="${file.id}" data-bs-toggle="modal" data-bs-target="#previewModal" title="Preview"><i class="bi bi-eye"></i></button>
-                        <a href="#" class="btn btn-sm btn-outline-secondary" title="Download"><i class="bi bi-download"></i></a>
-                        <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${file.id}" title="Delete"><i class="bi bi-trash"></i></button>
+                        <button class="btn btn-sm btn-outline-danger btn-delete" data-id="${file.id}" title="Delete History"><i class="bi bi-trash"></i></button>
                     </td>
                 </tr>
             `;
@@ -60,22 +42,75 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    // --- API & UPLOAD LOGIC ---
+    const uploadFile = async (fileToUpload) => {
+        // Create a temporary entry for immediate UI feedback
+        const tempId = Date.now();
+        const newFileEntry = {
+            id: tempId,
+            file_name: fileToUpload.name,
+            status: 'Processing',
+            total_contacts: '...',
+            upload_date: new Date().toISOString(),
+        };
+        files.unshift(newFileEntry);
+        renderFiles();
+
+        const formData = new FormData();
+        formData.append('csvFile', fileToUpload);
+
+        try {
+            const response = await fetch('/api/csv/upload-contacts', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Upload failed');
+            }
+            
+            // After a successful upload, fetch the entire history again to get the real, updated data
+            fetchUploadHistory();
+
+        } catch (error) {
+            console.error('Upload error:', error);
+            // Find the temp entry and mark it as failed
+            const errorFileEntry = files.find(f => f.id === tempId);
+            if (errorFileEntry) {
+                errorFileEntry.status = 'Failed';
+                errorFileEntry.total_contacts = 0;
+            }
+            alert(`Error: ${error.message}`);
+            renderFiles();
+        }
+    };
+    
+    // --- Function to fetch initial data ---
+    const fetchUploadHistory = async () => {
+        try {
+            const response = await fetch('/api/csv/upload-history');
+            if (!response.ok) {
+                throw new Error('Could not fetch upload history.');
+            }
+            const data = await response.json();
+            files = data;
+            renderFiles();
+        } catch (error) {
+            console.error(error);
+            fileListBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Error loading history.</td></tr>`;
+        }
+    };
+
     // --- EVENT HANDLERS ---
     const handleFileSelect = (uploadedFile) => {
-        if (!uploadedFile || !uploadedFile.name.endsWith('.csv')) {
+        if (!uploadedFile) return;
+        if (!uploadedFile.name.toLowerCase().endsWith('.csv')) {
             alert('Please upload a valid .csv file.');
             return;
         }
-        const newFile = {
-            id: Date.now(),
-            name: uploadedFile.name,
-            status: 'pending',
-            total: 0, // Should be determined after parsing
-            processed: 0,
-            date: new Date().toISOString().split('T')[0],
-        };
-        files.unshift(newFile); // Add new file to the top
-        renderFiles();
+        uploadFile(uploadedFile);
     };
 
     const handleTableActions = (e) => {
@@ -85,16 +120,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const fileId = parseInt(target.dataset.id);
 
         if (target.classList.contains('btn-delete')) {
-            if (confirm('Are you sure you want to delete this file history?')) {
+            if (confirm('Are you sure you want to delete this upload record and all its associated contacts?')) {
+                // TODO: Add an API call to delete this from the server
+                // fetch(`/api/upload-history/${fileId}`, { method: 'DELETE' }).then(...)
                 files = files.filter(f => f.id !== fileId);
                 renderFiles();
-            }
-        }
-        
-        if (target.classList.contains('btn-preview')) {
-            const file = files.find(f => f.id === fileId);
-            if(file) {
-                 previewModalTitle.textContent = `Data Preview: ${file.name}`;
             }
         }
     };
@@ -117,6 +147,6 @@ document.addEventListener('DOMContentLoaded', () => {
     fileInput.addEventListener('change', (e) => handleFileSelect(e.target.files[0]));
     fileListBody.addEventListener('click', handleTableActions);
 
-    // --- INITIAL RENDER ---
-    renderFiles();
+    // --- INITIAL FETCH ---
+    fetchUploadHistory();
 });

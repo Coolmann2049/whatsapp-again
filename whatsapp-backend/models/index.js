@@ -17,6 +17,15 @@ const sequelize = new Sequelize('u737067433_agent','u737067433_agent','YASH.deep
 
 // Import models
 const UserID = require('./userId.model')(sequelize);
+const Contact = require('./contacts.model')(sequelize);
+const Campaign = require('./campaign.model')(sequelize);
+const MessageTemplate = require('./messageTemplate.model')(sequelize);
+const UploadHistory = require('./uploadHistory.model')(sequelize);
+const UserAnalytics = require('./userAnalytics.model')(sequelize);
+const CampaignContacts = require('./campaignContacts.model')(sequelize);
+const WelcomeMessage = require('./welcomeMessage.model')(sequelize);
+const DialogFlows = require('./dialogFlows.model')(sequelize);
+const AiConfiguration = require('./aiConfiguration.model')(sequelize);
 
 // Initialize database
 async function initializeDatabase() {
@@ -38,5 +47,14 @@ async function initializeDatabase() {
 module.exports = {
   sequelize,
   UserID,
+  Contact,
+  Campaign,
+  MessageTemplate,
+  UploadHistory,
+  UserAnalytics,
+  CampaignContacts,
+  WelcomeMessage,
+  DialogFlows,
+  AiConfiguration,
   initializeDatabase
 };
