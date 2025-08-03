@@ -1,7 +1,7 @@
 // In your worker's controller file (e.g., controllers/campaignController.js)
 
 const axios = require('axios');
-const { activeClients } = require('./initialize'); // Assuming activeClients is exported
+const { activeClients } = require('../controllers'); // Assuming activeClients is exported
 
 // Helper function for delays
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));

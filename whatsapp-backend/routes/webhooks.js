@@ -159,6 +159,7 @@ router.get('/get-all-clients',  async (req, res) => {
 
         const auth = req.body.auth;
         if (auth != process.env.VPS_KEY) {
+            console.log(auth);
             return res.status(401).json({ message: 'Unauthorized' });
         }
         

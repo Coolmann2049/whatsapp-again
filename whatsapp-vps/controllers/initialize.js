@@ -1,6 +1,6 @@
 const axios = require('axios'); // Make sure to import axios
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const { processCampaign } = require('./campaignController'); // Import the campaign processor
+const { processCampaign } = require('../controllers'); // Import the campaign processor
 const dotenv = require('dotenv');
 
 // Load environment variables
@@ -11,6 +11,7 @@ const activeClients = {};
 async function restoreAllSessions() {
     console.log('Attempting to restore sessions on startup...');
     try {
+        console.log(process.env.VPS_KEY);
         // The request is now a POST to send the auth key in the body
         const response = await axios.post(`${process.env.MAIN_BACKEND_URL}/api/webhook/get-all-clients`, {
             // The auth key is sent in the request body
@@ -150,8 +151,9 @@ async function sendTestMessage(client, number, message) {
 async function resumeRunningCampaigns() {
     console.log('Checking for running campaigns to resume...');
     try {
+        console.log(process.env.VPS_KEY);
         const response = await axios.get(`${process.env.MAIN_BACKEND_URL}/api/webhook/running-campaigns`, {
-            headers: { 'x-vps-auth-key': process.env.VPS_KEY }
+            auth : process.env.VPS_KEY 
         });
 
         const campaignsToResume = response.data;
