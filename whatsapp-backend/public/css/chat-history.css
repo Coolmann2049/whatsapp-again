@@ -4,81 +4,89 @@
     --sidebar-width: 250px; /* Adjust if your sidebar width is different */
     --primary-color: #1976d2; /* Example color, match this to your brand */
 }
+/* chat-history.css */
 
-/* Main Content Area Styling */
+.main-content, .chat-layout-container, .row, .col-12 {
+    height: 100vh;
+    overflow: hidden;
+}
+
 .main-content {
-    background-color: #f4f6f8;
-    min-height: 100vh;
-    padding-top: 1rem; /* Adjust if you have a fixed top mobile navbar */
+    background-color: #f8f9fa;
 }
 
-
-/* Make the main layout fill the viewport height */
-.main-content, .chat-layout-container {
-    height: calc(100vh - 64px); /* Adjust 64px if you have a top navbar */
-}
-
-/* Chat list panel styling */
+/* Left Panel: Conversation List */
 .chat-list-panel {
     display: flex;
     flex-direction: column;
     height: 100%;
+    background-color: #fff;
     border-right: 1px solid #dee2e6;
 }
 
-/* Ensure list-group-item has a pointer cursor */
 .list-group-item-action {
     cursor: pointer;
 }
 
-/* Conversation panel styling */
+.list-group-item.active {
+    background-color: #e7f1ff;
+    border-color: #0d6efd;
+    color: #000;
+}
+
+/* Right Panel: Conversation View */
 .conversation-panel {
     display: flex;
     flex-direction: column;
     height: 100%;
+    background-color: #f0f2f5; /* WhatsApp-like background */
 }
 
-#chat-view-container {
+#messages-container {
     display: flex;
+    flex-direction: column-reverse; /* Newest messages at the bottom */
 }
 
-/* Message bubble styling */
+/* Message Bubbles */
 .message-container {
     display: flex;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
+    max-width: 75%;
 }
 .message-bubble {
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 1rem;
     border-radius: 1rem;
-    max-width: 70%;
+    word-wrap: break-word;
 }
-.message-bubble .timestamp {
-    font-size: 0.75rem;
+.timestamp {
+    font-size: 0.7rem;
     display: block;
     margin-top: 0.25rem;
     opacity: 0.7;
+    text-align: right;
 }
 
-/* User's own messages */
-.user-message {
-    justify-content: flex-end; /* Align container to the right */
-}
-.user-message .message-bubble {
-    background-color: #0d6efd;
-    color: white;
-    border-bottom-right-radius: 0.25rem;
-}
-
-/* Messages from contact/bot */
-.contact-message {
-    justify-content: flex-start; /* Align container to the left */
-}
-.contact-message .message-bubble {
-    background-color: #e9ecef;
+.bot-message {
+    align-self: flex-start;
+    background-color: #fff;
     color: #212529;
     border-bottom-left-radius: 0.25rem;
 }
 
+.user-message {
+    align-self: flex-end;
+    background-color: #dcf8c6; /* WhatsApp green */
+    color: #000;
+    border-bottom-right-radius: 0.25rem;
+}
+
+/* Loading Spinner */
+.spinner-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+}
 @media (min-width: 576px) {
     .main-content {
         margin-left: var(--sidebar-width);

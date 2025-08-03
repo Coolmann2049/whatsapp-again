@@ -1,8 +1,8 @@
 // On your Worker VPS
 const express = require('express');
 const router = express.Router();
-const { Client, LocalAuth } = require('whatsapp-web.js');
 const axios = require('axios'); // To send webhooks to the Main Backend
+const { initializeClient, sendTestMessage, activeClients } = require('../controllers/initialize');
 const dotenv = require('dotenv');
 
 // Load environment variables
@@ -10,99 +10,11 @@ dotenv.config();
 
 const MAIN_BACKEND_URL = process.env.MAIN_BACKEND_URL;
 
-// 1. The container for all your client instances
-const activeClients = {};
 
 /**
  * Creates and initializes a new whatsapp-web.js client instance.
  * @param {string} clientId - A unique identifier for the client (e.g., their username or user ID).
  */
-
-function initializeClient(clientId) {
-    console.log(`Initializing client for: ${clientId}`);
-
-    const client = new Client({
-        // Use LocalAuth to save session data, ensuring each client has their own folder
-        authStrategy: new LocalAuth({ clientId: clientId }),
-        puppeteer: {
-            headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        }
-    });
-
-    // --- Event Listeners for this specific client ---
-
-    client.on('qr', (qr) => {
-        console.log(`[${clientId}] QR Code received. Sending to Main Backend.`);
-        // Send the QR code back to your Main Backend to be relayed to the frontend
-        axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-qr-update`, { clientId, qrCode: qr, auth: process.env.VPS_KEY });
-    });
-
-    client.on('ready', () => {
-        console.log(`[${clientId}] Client is ready!`);
-
-        // Access information about the logged-in account
-        const userName = client.info.pushname;
-        const userPhone = client.info.wid.user;
-
-        console.log(userName , userPhone);
-        // Notify the Main Backend that the connection is successful
-        axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
-            clientId, 
-            status: 'connected',
-            userName,
-            userPhone,
-            auth: process.env.VPS_KEY
-        });
-    });
-
-    client.on('disconnected', (reason) => {
-        console.log(`[${clientId}] Client was logged out. Reason:`, reason);
-
-        const userName = client.info.pushname;
-        const userPhone = client.info.wid.user;
-
-        axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
-            clientId, 
-            status: 'disconnected',
-            userName,
-            userPhone,
-            auth: process.env.VPS_KEY
-        });
-
-        // Clean up the disconnected client
-        delete activeClients[clientId];
-    });
-
-    client.on('message', (message) => {
-        // Handle incoming messages for this client
-        console.log(`[${clientId}] Received message:`, message.body);
-    });
-
-    // Start the initialization process
-    client.initialize();
-
-    // 2. Store the new client instance in our container
-    activeClients[clientId] = client;
-}
-
-async function sendTestMessage(client, number, message) {
-    try {
-        // Format the number to the correct WhatsApp ID format
-        const chatId = `${number}@c.us`;
-        
-        // Send the message
-        const sentMessage = await client.sendMessage(chatId, message);
-        console.log(`[${client.info.me.user}] Successfully sent test message to ${number}`);
-        console.log(sentMessage);
-        // Return the confirmation from the library
-        return sentMessage;
-    } catch (error) {
-        console.error(`[${client.info.me.user}] Failed to send message to ${number}:`, error);
-        // Throw the error so the endpoint can catch it and send a 500 response
-        throw new Error('Failed to send message. The number might be invalid or not on WhatsApp.');
-    }
-}
 
 
 // --- API Endpoint to create new instances ---

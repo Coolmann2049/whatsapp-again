@@ -52,6 +52,11 @@ module.exports = (sequelize) => {
             allowNull: true,
             defaultValue: () => ({ formality: 50, friendliness: 50, creativity: 50, detail: 50 })
         },
+        knowledge_base: {
+            type: DataTypes.TEXT,
+            allowNull: true,
+            defaultValue: ' '
+        },
         faq: {
             type: DataTypes.JSON,
             allowNull: true,

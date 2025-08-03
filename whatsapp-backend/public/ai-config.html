@@ -33,9 +33,9 @@
                         </button>
                     </div>
                     <div class="nav-item">
-                        <button class="nav-link" data-page="starting-message">
-                            <i class="fas fa-comment nav-icon"></i>
-                            <span class="nav-text">Starting Message</span>
+                        <button class="nav-link" data-page="campaigns">
+                            <i class="bi bi-megaphone-fill nav-icon"></i>
+                            <span class="nav-text">Campaigns</span>
                         </button>
                     </div>
                      <div class="nav-item">
@@ -50,10 +50,16 @@
                             <span class="nav-text">Chat History</span>
                         </button>
                     </div>
+                    <div class="nav-item">
+                        <button class="nav-link" data-page="message-template">
+                            <i class="bi bi-card-text nav-icon"></i>
+                            <span class="nav-text">Message Template</span>
+                        </button>
+                    </div>
                      <div class="nav-item">
-                        <button class="nav-link" data-page="message-config">
+                        <button class="nav-link" data-page="auto-reply-settings">
                             <i class="bi bi-gear-fill nav-icon"></i>
-                            <span class="nav-text">Message Config</span>
+                            <span class="nav-text">Auto Reply Settings</span>
                         </button>
                     </div>
                     <div class="nav-item">
@@ -79,100 +85,145 @@
         </div>
 
         <main class="main-content flex-grow-1 p-4">
-            <div class="container-sm content-wrapper">
-                <div class="d-flex align-items-center mb-4">
-                    <i class="bi bi-robot me-2 h3 mb-0"></i>
-                    <h1 class="h3 mb-0">AI Configuration</h1>
-                </div>
-
+            <div class="container-fluid content-wrapper">
                 <div class="alert alert-success d-none" role="alert" id="save-alert">
                     Configuration saved successfully!
                 </div>
+                
+                <div class="row g-4">
+                    <!-- Left Column: Configuration Forms -->
+                    <div class="col-lg-7">
+                        <div class="d-flex align-items-center mb-4">
+                            <i class="bi bi-robot me-2 h3 mb-0"></i>
+                            <h1 class="h3 mb-0">AI Configuration</h1>
+                        </div>
 
-                <div class="card shadow-sm mb-4">
-                    <div class="card-body p-4">
-                        <h5 class="card-title mb-4">Business Information</h5>
-                        <div class="row g-3">
-                            <div class="col-12 col-sm-6">
-                                <div class="form-floating">
-                                    <input type="text" class="form-control" id="businessName" placeholder="Your Business Name">
-                                    <label for="businessName">Business Name</label>
+                        <!-- Business Information Card -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body p-4">
+                                <h5 class="card-title mb-4">Business Information</h5>
+                                <div class="row g-3">
+                                    <div class="col-12 col-sm-6">
+                                        <div class="form-floating">
+                                            <input type="text" class="form-control" id="businessName" placeholder="Your Business Name" required>
+                                            <label for="businessName">Business Name <span class="text-danger">*</span></label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-sm-6">
+                                        <div class="form-floating">
+                                            <input type="text" class="form-control" id="industry" placeholder="e.g., E-commerce" required>
+                                            <label for="industry">Industry <span class="text-danger">*</span></label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-floating">
+                                            <textarea class="form-control" placeholder="Describe your business" id="description" style="height: 100px" required></textarea>
+                                            <label for="description">Business Description <span class="text-danger">*</span></label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-floating">
+                                            <textarea class="form-control" placeholder="e.g., SaaS Subscriptions, premium widgets" id="keyProducts" style="height: 100px"></textarea>
+                                            <label for="keyProducts">Key Products/Services</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-floating">
+                                            <select class="form-select" id="tonePreference">
+                                                <option value="professional">Professional</option>
+                                                <option value="casual">Casual</option>
+                                                <option value="friendly">Friendly</option>
+                                                <option value="formal">Formal</option>
+                                            </select>
+                                            <label for="tonePreference">Communication Tone</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-floating">
+                                            <textarea class="form-control" placeholder="e.g., Do not mention competitors by name." id="notToDo" style="height: 100px"></textarea>
+                                            <label for="notToDo">"Not To Do" Instructions</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-floating">
+                                            <textarea class="form-control" placeholder="Paste any relevant text, product info, or company policies here." id="knowledgeBase" style="height: 150px"></textarea>
+                                            <label for="knowledgeBase">Knowledge Base</label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-12 col-sm-6">
-                                <div class="form-floating">
-                                    <input type="text" class="form-control" id="industry" placeholder="e.g., E-commerce">
-                                    <label for="industry">Industry</label>
+                        </div>
+
+                        <!-- AI Personality Card -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body p-4">
+                                <h5 class="card-title mb-4">AI Personality Settings</h5>
+                                <div class="px-2">
+                                    <label for="formality" class="form-label">Formality Level</label>
+                                    <input type="range" class="form-range" id="formality" value="50">
+                                    
+                                    <label for="friendliness" class="form-label mt-3">Friendliness Level</label>
+                                    <input type="range" class="form-range" id="friendliness" value="50">
+
+                                    <label for="creativity" class="form-label mt-3">Creativity Level</label>
+                                    <input type="range" class="form-range" id="creativity" value="50">
+
+                                    <label for="detail" class="form-label mt-3">Detail Level</label>
+                                    <input type="range" class="form-range" id="detail" value="50">
                                 </div>
                             </div>
-                            <div class="col-12">
-                                <div class="form-floating">
-                                    <textarea class="form-control" placeholder="Describe your business" id="description" style="height: 100px"></textarea>
-                                    <label for="description">Business Description</label>
+                        </div>
+
+                        <!-- FAQ Card -->
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body p-4">
+                                <h5 class="card-title mb-4">Frequently Asked Questions (FAQ)</h5>
+                                <div class="row g-4">
+                                    <div class="col-md-8">
+                                        <div class="form-floating mb-3">
+                                            <input type="text" class="form-control" id="faq-question" placeholder="Question">
+                                            <label for="faq-question">Question</label>
+                                        </div>
+                                        <div class="form-floating">
+                                            <textarea class="form-control" placeholder="Answer" id="faq-answer" style="height: 120px"></textarea>
+                                            <label for="faq-answer">Answer</label>
+                                        </div>
+                                        <button class="btn btn-secondary mt-3" id="add-faq-btn">Add FAQ</button>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div id="faq-list" class="faq-list-container">
+                                            <!-- FAQs will be rendered here -->
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-12">
-                                <div class="form-floating">
-                                    <input type="text" class="form-control" id="targetAudience" placeholder="e.g., Young Professionals">
-                                    <label for="targetAudience">Target Audience</label>
+                        </div>
+
+                        <button class="btn btn-primary btn-lg mb-4" id="save-config-btn">
+                            <i class="bi bi-save me-2"></i>Save Configuration
+                        </button>
+                    </div>
+
+                    <!-- Right Column: AI Chat Test -->
+                    <div class="col-lg-5">
+                        <div class="chat-panel-container sticky-top">
+                            <div class="card shadow-sm">
+                                <div class="card-header">
+                                    <h5 class="mb-0">AI Chat Test</h5>
                                 </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="form-floating">
-                                    <input type="text" class="form-control" id="keyProducts" placeholder="e.g., SaaS Subscriptions">
-                                    <label for="keyProducts">Key Products/Services</label>
+                                <div class="card-body chat-messages" id="chat-messages">
+                                    <!-- Chat messages will appear here -->
                                 </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="form-floating">
-                                    <select class="form-select" id="tonePreference">
-                                        <option value="professional">Professional</option>
-                                        <option value="casual">Casual</option>
-                                        <option value="friendly">Friendly</option>
-                                        <option value="formal">Formal</option>
-                                    </select>
-                                    <label for="tonePreference">Communication Tone</label>
+                                <div class="card-footer">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" placeholder="Type a message..." id="chat-input">
+                                        <button class="btn btn-primary" id="send-chat-btn"><i class="bi bi-send"></i></button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <div class="card shadow-sm mb-4">
-                    <div class="card-body p-4">
-                        <h5 class="card-title mb-4">AI Personality Settings</h5>
-                        <div class="px-2">
-                            <label for="formality" class="form-label">Formality Level</label>
-                            <input type="range" class="form-range" id="formality" value="50">
-                            
-                            <label for="friendliness" class="form-label mt-3">Friendliness Level</label>
-                            <input type="range" class="form-range" id="friendliness" value="50">
-
-                            <label for="creativity" class="form-label mt-3">Creativity Level</label>
-                            <input type="range" class="form-range" id="creativity" value="50">
-
-                            <label for="detail" class="form-label mt-3">Detail Level</label>
-                            <input type="range" class="form-range" id="detail" value="50">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card shadow-sm mb-4">
-                    <div class="card-body p-4">
-                        <h5 class="card-title mb-4">Key Phrases & Keywords</h5>
-                        <div class="form-floating">
-                            <input type="text" class="form-control" id="keyword-input" placeholder="Type a keyword and press Enter">
-                            <label for="keyword-input">Add Keywords</label>
-                        </div>
-                        <div class="form-text mb-3">Press Enter to add keywords.</div>
-                        <div id="keywords-container" class="d-flex flex-wrap gap-2">
-                            </div>
-                    </div>
-                </div>
-
-                <button class="btn btn-primary btn-lg mb-4" id="save-config-btn">
-                    <i class="bi bi-save me-2"></i>Save Configuration
-                </button>
             </div>
         </main>
     </div>

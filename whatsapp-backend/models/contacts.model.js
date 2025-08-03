@@ -46,6 +46,11 @@ module.exports = (sequelize) => {
         company: {
             type: DataTypes.STRING(255),
             defaultValue: ''
+        },
+        is_manual_mode: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false
         }
     }, {
         tableName: 'contacts',

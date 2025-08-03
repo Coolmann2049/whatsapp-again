@@ -28,15 +28,6 @@ module.exports = (sequelize) => {
             type: DataTypes.TEXT,
             allowNull: false
         },
-        parent_id: {
-            type: DataTypes.INTEGER,
-            allowNull: true, // Top-level flows will have NULL here
-            references: {
-                model: 'dialog_flows', // Self-referencing key
-                key: 'id'
-            },
-            onDelete: 'CASCADE' // If a parent is deleted, its children are also deleted
-        }
     }, {
         tableName: 'dialog_flows',
         timestamps: true,
@@ -46,10 +37,6 @@ module.exports = (sequelize) => {
             {
                 name: 'idx_userId',
                 fields: ['userId']
-            },
-            {
-                name: 'idx_parentId',
-                fields: ['parent_id']
             }
         ]
     });

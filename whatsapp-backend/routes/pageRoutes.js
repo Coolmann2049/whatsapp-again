@@ -22,8 +22,8 @@ router.get('/dashboard', authMiddleware, (req, res) => {
 });
 
 // Starting message route
-router.get('/starting-message', authMiddleware, (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'starting-message.html'));
+router.get('/campaigns', authMiddleware, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'campaigns.html'));
 });
 
 // AI config route
@@ -36,9 +36,14 @@ router.get('/chat-history', authMiddleware, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'chat-history.html'));
 });
 
-// Message config route
-router.get('/message-config', authMiddleware, (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'message-config.html'));
+// Chat history route
+router.get('/message-template', authMiddleware, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'message-template.html'));
+});
+
+// Auto reply Settings route
+router.get('/auto-reply-settings', authMiddleware, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'auto-reply-settings.html'));
 });
 
 // CSV upload route

@@ -45,6 +45,18 @@
     z-index: 1050;
 }
 
+.main-content {
+    background-color: #f4f6f8;
+}
+
+.content-wrapper {
+    max-width: 1200px;
+}
+
+.card-header {
+    background-color: #fff;
+}
+
 @media (min-width: 576px) {
     .main-content {
         margin-left: var(--sidebar-width);

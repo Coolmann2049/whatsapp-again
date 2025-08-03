@@ -69,6 +69,7 @@ const whatsapp = require('./routes/whatsapp');
 const webhook = require('./routes/webhooks');
 const csv = require('./routes/csv');
 const data = require('./routes/data');
+const chat = require('./routes/chat');
 
 // Page routes
 app.use('/', pageRoutes);
@@ -88,7 +89,7 @@ app.use(authMiddleware);
 app.use('/api/whatsapp', whatsapp);
 app.use('/api/csv', csv);
 app.use('/api/data', data);
-
+app.use('/api/chat', chat)
 // Initialize database and start server
 initializeDatabase().then(() => {
 

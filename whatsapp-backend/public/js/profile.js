@@ -65,6 +65,24 @@ function setupEventListeners() {
         }
     });
     
+    const loginEmailInput = document.getElementById('login-email');
+    const loginPasswordInput = document.getElementById('login-password');
+
+    // --- Function to handle the key press ---
+    const handleKeyPress = (event) => {
+        // Check if the key pressed was "Enter"
+        if (event.key === 'Enter') {
+            // Prevent the default action (like form submission)
+            event.preventDefault();
+            // Programmatically click the login button
+            loginBtn.click();
+        }
+    };
+
+    // --- Attach the event listener to both input fields ---
+    loginEmailInput.addEventListener('keyup', handleKeyPress);
+    loginPasswordInput.addEventListener('keyup', handleKeyPress);
+    
     const logoutBtn = document.getElementById('logout-btn');
     logoutBtn.addEventListener('click', async () => {
         try {

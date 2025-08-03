@@ -26,6 +26,7 @@ const CampaignContacts = require('./campaignContacts.model')(sequelize);
 const WelcomeMessage = require('./welcomeMessage.model')(sequelize);
 const DialogFlows = require('./dialogFlows.model')(sequelize);
 const AiConfiguration = require('./aiConfiguration.model')(sequelize);
+const ChatMessage = require('./chatMessage.model')(sequelize);
 
 // Initialize database
 async function initializeDatabase() {
@@ -36,6 +37,33 @@ async function initializeDatabase() {
     // Force sync all models with the database
     await sequelize.sync({ alter: true });
     console.log('Database models synchronized successfully.');
+
+    // A Campaign belongs to a single MessageTemplate
+    Campaign.belongsTo(MessageTemplate, {
+        foreignKey: 'template_id',
+        as: 'template' // This 'as' alias MUST match the one in your .findAll() query
+    });
+
+    // A MessageTemplate can be used in many Campaigns
+    MessageTemplate.hasMany(Campaign, {
+        foreignKey: 'template_id'
+    });
+
+    // In your models/index.js or database.js
+    Campaign.belongsTo(UserID, { foreignKey: 'userId', as: 'user' });
+    UserID.hasMany(Campaign, { foreignKey: 'userId' });
+
+    // A Contact can have many ChatMessages
+    Contact.hasMany(ChatMessage, {
+        foreignKey: 'contact_id'
+    });
+
+    // A ChatMessage belongs to one Contact
+    ChatMessage.belongsTo(Contact, {
+        foreignKey: 'contact_id'
+    });
+
+
     
   } catch (error) {
     console.error('Unable to initialize database:', error);
@@ -56,5 +84,6 @@ module.exports = {
   WelcomeMessage,
   DialogFlows,
   AiConfiguration,
+  ChatMessage,
   initializeDatabase
 };

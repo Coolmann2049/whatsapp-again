@@ -1,143 +1,206 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- SAMPLE DATA & STATE ---
-    const chats = [{
-        id: 1,
-        contact: 'John Doe',
-        phone: '+1234567890',
-        lastMessage: 'Thank you for your help!',
-        timestamp: '10:30 AM',
-        status: 'active',
-        messages: [{
-            id: 1, text: 'Hello! How can I help you today?', sender: 'bot', timestamp: '10:25 AM'
-        }, {
-            id: 2, text: 'I need information about your services', sender: 'user', timestamp: '10:27 AM'
-        }, {
-            id: 3, text: 'Thank you for your help!', sender: 'user', timestamp: '10:30 AM'
-        }, ],
-    }, {
-        id: 2,
-        contact: 'Jane Smith',
-        phone: '+0987654321',
-        lastMessage: 'Okay, sounds good.',
-        timestamp: 'Yesterday',
-        status: 'closed',
-        messages: [{
-            id: 1, text: 'Your appointment is confirmed.', sender: 'bot', timestamp: 'Yesterday'
-        }, {
-            id: 2, text: 'Okay, sounds good.', sender: 'user', timestamp: 'Yesterday'
-        }]
-    }, ];
-    let selectedChat = null;
-    let aiEnabled = true;
+    // --- STATE MANAGEMENT ---
+    let conversationsState = { list: [], currentPage: 1, totalPages: 1, isLoading: false, searchQuery: '' };
+    let messagesState = { list: [], currentPage: 1, totalPages: 1, isLoading: false, activeContactId: null };
 
     // --- DOM REFERENCES ---
     const chatListContainer = document.getElementById('chat-list-container');
+    const searchInput = document.getElementById('search-input');
     const welcomeMessage = document.getElementById('welcome-message');
     const chatViewContainer = document.getElementById('chat-view-container');
     const chatHeaderName = document.getElementById('chat-header-name');
     const messagesContainer = document.getElementById('messages-container');
     const messageInput = document.getElementById('message-input');
     const sendButton = document.getElementById('send-btn');
-    const aiToggleButton = document.getElementById('ai-toggle-btn');
-    const searchInput = document.getElementById('search-input');
+    const manualModeBtn = document.getElementById('manual-mode-toggle-btn');
+
+    // --- UTILITY FUNCTIONS ---
+    const debounce = (func, delay) => {
+        let timeout;
+        return (...args) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), delay);
+        };
+    };
 
     // --- RENDER FUNCTIONS ---
-    const renderChatList = (chatsToRender) => {
-        chatListContainer.innerHTML = '';
-        chatsToRender.forEach(chat => {
-            const activeClass = selectedChat && selectedChat.id === chat.id ? 'active' : '';
-            const statusColor = chat.status === 'active' ? 'success' : 'secondary';
+    const renderConversations = (append = false) => {
+        if (!append) chatListContainer.innerHTML = '';
+        
+        if (conversationsState.list.length === 0 && !conversationsState.isLoading) {
+            chatListContainer.innerHTML = `<p class="text-center text-muted p-4">No conversations found.</p>`;
+            return;
+        }
+
+        conversationsState.list.forEach(convo => {
+            const contact = convo.Contact || convo; // Handle the structure from the API
+            const activeClass = messagesState.activeContactId === contact.id ? 'active' : '';
+            const manualIcon = contact.is_manual_mode ? '<i class="bi bi-person-fill text-danger me-2" title="Manual Mode"></i>' : '';
             const chatItemHtml = `
-                <a href="#" class="list-group-item list-group-item-action ${activeClass}" data-chat-id="${chat.id}">
+                <a href="#" class="list-group-item list-group-item-action ${activeClass}" data-contact-id="${contact.id}">
                     <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">${chat.contact}</h6>
-                        <small>${chat.timestamp}</small>
+                        <h6 class="mb-1">${manualIcon}${contact.name}</h6>
+                        <small class="text-muted">${new Date(convo.lastMessageAt).toLocaleTimeString()}</small>
                     </div>
-                    <p class="mb-1 text-truncate">${chat.lastMessage}</p>
-                    <small><span class="badge bg-${statusColor}">${chat.status}</span></small>
+                    <p class="mb-1 text-truncate small">${contact.phone}</p>
                 </a>
             `;
             chatListContainer.insertAdjacentHTML('beforeend', chatItemHtml);
         });
     };
 
-    const renderConversation = (chat) => {
-        if (!chat) return;
-        welcomeMessage.classList.add('d-none');
-        chatViewContainer.classList.remove('d-none');
-        chatHeaderName.textContent = chat.contact;
-        messagesContainer.innerHTML = '';
-        chat.messages.forEach(msg => {
-            const messageSide = msg.sender === 'user' ? 'user-message' : 'contact-message';
+    const renderMessages = (prepend = false) => {
+        if (!prepend) messagesContainer.innerHTML = '';
+        
+        // Messages are fetched newest first, so we reverse for chronological display
+        messagesState.list.slice().reverse().forEach(msg => {
+            const messageSide = msg.sender === 'user' ? 'user-message' : 'bot-message';
             const messageHtml = `
                 <div class="message-container ${messageSide}">
                     <div class="message-bubble">
-                        <div>${msg.text}</div>
-                        <span class="timestamp">${msg.timestamp}</span>
+                        <div>${msg.message_content}</div>
+                        <span class="timestamp">${new Date(msg.timestamp).toLocaleString()}</span>
                     </div>
                 </div>
             `;
-            messagesContainer.insertAdjacentHTML('beforeend', messageHtml);
+            // Prepend to add older messages to the top
+            messagesContainer.insertAdjacentHTML('afterbegin', messageHtml);
         });
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    };
+
+    const updateManualModeButton = (isManual) => {
+        manualModeBtn.disabled = false;
+        if (isManual) {
+            manualModeBtn.innerHTML = `<i class="bi bi-person-fill me-1"></i> Manual Mode Active`;
+            manualModeBtn.className = 'btn btn-sm btn-danger';
+            messageInput.disabled = false;
+            sendButton.disabled = false;
+        } else {
+            manualModeBtn.innerHTML = `<i class="bi bi-robot me-1"></i> AI Enabled`;
+            manualModeBtn.className = 'btn btn-sm btn-primary';
+            messageInput.disabled = true;
+            sendButton.disabled = true;
+        }
+    };
+
+    // --- API & DATA HANDLING ---
+    const fetchConversations = async (page = 1, search = '', append = false) => {
+        if (conversationsState.isLoading) return;
+        conversationsState.isLoading = true;
+        if (!append) conversationsState.list = [];
+
+        try {
+            const response = await fetch(`/api/chat/conversations?page=${page}&limit=30&search=${search}`);
+            if (!response.ok) throw new Error('Failed to fetch conversations');
+            const data = await response.json();
+
+            conversationsState.list = append ? [...conversationsState.list, ...data.conversations] : data.conversations;
+            conversationsState.currentPage = data.currentPage;
+            conversationsState.totalPages = data.totalPages;
+            renderConversations();
+        } catch (error) {
+            console.error(error);
+        } finally {
+            conversationsState.isLoading = false;
+        }
+    };
+
+    const fetchMessages = async (contactId, page = 1) => {
+        if (messagesState.isLoading) return;
+        messagesState.isLoading = true;
+        
+        // Show loading spinner in message view
+        if (page === 1) messagesContainer.innerHTML = `<div class="spinner-container"><div class="spinner-border text-primary"></div></div>`;
+
+        try {
+            const response = await fetch(`/api/chat/chat-history/${contactId}?page=${page}&limit=50`);
+            if (!response.ok) throw new Error('Failed to fetch messages');
+            const data = await response.json();
+
+            messagesState.list = page === 1 ? data.messages : [...messagesState.list, ...data.messages];
+            messagesState.currentPage = data.currentPage;
+            messagesState.totalPages = data.totalPages;
+            
+            if (page === 1) {
+                messagesContainer.innerHTML = ''; // Clear spinner
+                renderMessages();
+                messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll to bottom on first load
+            } else {
+                const oldScrollHeight = messagesContainer.scrollHeight;
+                renderMessages(true); // Prepend older messages
+                messagesContainer.scrollTop = messagesContainer.scrollHeight - oldScrollHeight; // Maintain scroll position
+            }
+
+            updateManualModeButton(data.is_manual_mode);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            messagesState.isLoading = false;
+        }
+    };
+    
+    const toggleManualMode = async () => {
+        if (!messagesState.activeContactId) return;
+        manualModeBtn.disabled = true;
+        try {
+            const response = await fetch(`/api/chat/conversations/${messagesState.activeContactId}/toggle-manual`, { method: 'PUT' });
+            if (!response.ok) throw new Error('Failed to toggle mode');
+            const data = await response.json();
+            updateManualModeButton(data.is_manual_mode);
+        } catch (error) {
+            console.error(error);
+            alert('Could not change mode. Please try again.');
+        }
     };
 
     // --- EVENT HANDLERS ---
-    const selectChat = (e) => {
+    const handleSearch = debounce(() => {
+        conversationsState.searchQuery = searchInput.value;
+        fetchConversations(1, conversationsState.searchQuery);
+    }, 300);
+
+    const handleConversationClick = (e) => {
         e.preventDefault();
         const chatItem = e.target.closest('.list-group-item');
-        if (!chatItem) return;
+        if (!chatItem || messagesState.isLoading) return;
 
-        const chatId = parseInt(chatItem.dataset.chatId);
-        selectedChat = chats.find(c => c.id === chatId);
-        renderChatList(chats.filter(c => c.contact.toLowerCase().includes(searchInput.value.toLowerCase())));
-        renderConversation(selectedChat);
+        const contactId = parseInt(chatItem.dataset.contactId);
+        if (messagesState.activeContactId === contactId) return;
+
+        messagesState = { list: [], currentPage: 1, totalPages: 1, isLoading: false, activeContactId: contactId };
+        
+        // Update UI to show selection
+        document.querySelectorAll('#chat-list-container .list-group-item').forEach(el => el.classList.remove('active'));
+        chatItem.classList.add('active');
+        
+        welcomeMessage.classList.add('d-none');
+        chatViewContainer.classList.remove('d-none');
+        chatHeaderName.textContent = chatItem.querySelector('h6').textContent;
+        
+        fetchMessages(contactId, 1);
     };
 
-    const sendMessage = () => {
-        const text = messageInput.value.trim();
-        if (!text || !selectedChat) return;
+    chatListContainer.addEventListener('scroll', () => {
+        const { scrollTop, scrollHeight, clientHeight } = chatListContainer;
+        if (scrollTop + clientHeight >= scrollHeight - 5 && !conversationsState.isLoading && conversationsState.currentPage < conversationsState.totalPages) {
+            fetchConversations(conversationsState.currentPage + 1, conversationsState.searchQuery, true);
+        }
+    });
 
-        const newMessage = {
-            id: Date.now(),
-            text: text,
-            sender: 'user', // Assuming agent sends as user from this UI
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-
-        selectedChat.messages.push(newMessage);
-        renderConversation(selectedChat);
-        messageInput.value = '';
-        messageInput.focus();
-    };
-
-    const toggleAI = () => {
-        aiEnabled = !aiEnabled;
-        const icon = aiToggleButton.querySelector('i');
-        const text = aiToggleButton.querySelector('span');
-
-        aiToggleButton.classList.toggle('btn-primary', aiEnabled);
-        aiToggleButton.classList.toggle('btn-outline-danger', !aiEnabled);
-        icon.classList.toggle('bi-robot', aiEnabled);
-        icon.classList.toggle('bi-person', !aiEnabled);
-        text.textContent = aiEnabled ? 'AI Enabled' : 'Manual Mode';
-    };
-    
-    const searchChats = (e) => {
-        const query = e.target.value.toLowerCase();
-        const filteredChats = chats.filter(c => c.contact.toLowerCase().includes(query) || c.phone.includes(query));
-        renderChatList(filteredChats);
-    };
+    messagesContainer.addEventListener('scroll', () => {
+        if (messagesContainer.scrollTop === 0 && !messagesState.isLoading && messagesState.currentPage < messagesState.totalPages) {
+            fetchMessages(messagesState.activeContactId, messagesState.currentPage + 1);
+        }
+    });
 
     // --- ATTACH EVENT LISTENERS ---
-    chatListContainer.addEventListener('click', selectChat);
-    sendButton.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
-    aiToggleButton.addEventListener('click', toggleAI);
-    searchInput.addEventListener('keyup', searchChats);
+    searchInput.addEventListener('input', handleSearch);
+    chatListContainer.addEventListener('click', handleConversationClick);
+    manualModeBtn.addEventListener('click', toggleManualMode);
     
-    // --- INITIAL RENDER ---
-    renderChatList(chats);
+    // TODO: Implement manual message sending
+    // sendButton.addEventListener('click', ...);
+
+    // --- INITIALIZATION ---
+    fetchConversations();
 });

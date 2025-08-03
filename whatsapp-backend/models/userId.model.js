@@ -56,7 +56,12 @@ module.exports = (sequelize) => {
     updated_at: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW
-    }
+    },
+    reply_mode: {
+      type: DataTypes.ENUM('ai', 'keyword', 'off'),
+      allowNull: false,
+      defaultValue: 'off' // Default to off for safety
+    },
   }, {
     tableName: 'user_id_whatsapp',
     timestamps: true,

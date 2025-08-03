@@ -20,10 +20,11 @@ class SidebarManager {
         const pageMap = {
             '': 'dashboard',
             '': 'dashboard',
-            'starting-message': 'starting-message',
+            'campaigns': 'campaigns',
             'ai-config': 'ai-config',
             'chat-history': 'chat-history',
-            'message-config': 'message-config',
+            'message-template': 'message-template',
+            'auto-reply-settings': 'auto-reply-settings',
             'csv-upload': 'csv-upload',
             'profile': 'profile',
             'devices': 'devices'
@@ -103,10 +104,11 @@ class SidebarManager {
         // Page URL mapping
         const pageUrls = {
             'dashboard': 'dashboard',
-            'starting-message': 'starting-message',
+            'campaigns': 'campaigns',
             'ai-config': 'ai-config',
             'chat-history': 'chat-history',
-            'message-config': 'message-config',
+            'message-template': 'message-template',
+            'auto-reply-settings': 'auto-reply-settings',
             'csv-upload': 'csv-upload',
             'profile': 'profile',
             'devices': 'devices'

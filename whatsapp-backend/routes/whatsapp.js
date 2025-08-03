@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { UserID } = require('../models');
+const { UserID, Campaign } = require('../models');
 const dotenv = require('dotenv');
 
 // Load environment variablFVes
@@ -104,5 +104,52 @@ router.get('/get-device-data', async (req, res) => {
     const devices = JSON.parse(user.devices_data);
     res.status(200).json(devices);
 });
+
+
+// POST: Start a specific campaign
+router.post('/campaigns/:id/start', async (req, res) => {
+    try {
+        const campaignId = req.params.id;
+        const userId = req.session.userId;
+
+        const campaign = await Campaign.findOne({ where: { id: campaignId, userId } });
+        if (!campaign) {
+            console.log('campaign not found for ', campaignId, userId);
+            return res.status(404).json({ error: 'Campaign not found.' });
+        }
+
+        const runningCampaign = await Campaign.findOne({
+            where: { client_id: campaign.client_id, status: 'Running' }
+        });
+        if (runningCampaign && runningCampaign.id !== parseInt(campaignId)) {
+            return res.status(409).json({ error: 'Another campaign is already running on this device.' });
+        }
+
+        await campaign.update({ status: 'Running' });
+
+        const response = await fetch(`${process.env.VPS_URL}/api/process-campaign`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                campaignId: campaign.id,
+                clientId: `${userId}_${req.session.email}_${campaign.deviceId}`,
+                auth: process.env.VPS_KEY
+            })
+        });
+
+        if (!response.ok) {
+            await campaign.update({ status: 'Draft' });
+            throw new Error('The worker failed to start the campaign process.');
+        }
+
+        res.json({ success: true, message: 'Campaign has been started.' });
+    } catch (error) {
+        console.error('Error starting campaign:', error);
+        res.status(500).json({ error: 'Failed to start campaign.' });
+    }
+});
+
 
 module.exports = router;

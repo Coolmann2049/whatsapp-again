@@ -41,11 +41,30 @@ function vpsAuthMiddleware(req, res, next) {
 }
 
 app.use(vpsAuthMiddleware);
+
 // Import router files
 const whatsappInitialize = require('./routes/whatsapp-intialize');
 
+const { restoreAllSessions, resumeRunningCampaigns } = require('./controllers/initialize');
+
 app.use('/api', whatsappInitialize);
 
-app.listen(process.env.PORT || 5000, () => {
-    console.log(`Server is running on port ${process.env.PORT || 5000}`);
+const PORT = process.env.VPS_PORT || 5000;
+
+app.listen(PORT, async () => {
+    console.log(`Worker VPS is running on port ${PORT}`);
+    
+    try {
+        // Use await to ensure we wait for the initial fetch and loop to start
+        await restoreAllSessions();
+        console.log('Session restoration process has been successfully initiated.');
+
+        await resumeRunningCampaigns();
+        console.log('Campaign resumption process has been successfully initiated.');
+    } catch (error) {
+        // This will catch any errors from the axios call or initial setup
+        console.error('CRITICAL STARTUP ERROR: Failed to restore sessions.', error.message);
+        // The server will continue running, but in a degraded state.
+        // You might want to implement a health check endpoint that reports this failure.
+    }
 });

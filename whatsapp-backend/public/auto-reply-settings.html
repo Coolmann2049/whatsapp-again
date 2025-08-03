@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Configuration - Blulink</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css"/>
+
+    <link rel="stylesheet" href="./css/sidebar.css">
+    <link rel="stylesheet" href="./css/auto-reply-settings.css">
+</head>
+<body>
+
+    <div class="d-flex">
+        <div class="sidebar-container">
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+            <div class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-title">Blulink</div>
+                    <div class="sidebar-subtitle">WhatsApp Automation</div>
+                </div>
+                
+                <nav class="sidebar-nav">
+                    <div class="nav-item">
+                        <button class="nav-link" data-page="dashboard">
+                            <i class="bi bi-columns-gap nav-icon"></i>
+                            <span class="nav-text">Dashboard</span>
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" data-page="campaigns">
+                            <i class="bi bi-megaphone-fill nav-icon"></i>
+                            <span class="nav-text">Campaigns</span>
+                        </button>
+                    </div>
+                     <div class="nav-item">
+                        <button class="nav-link" data-page="ai-config">
+                            <i class="bi bi-cpu nav-icon"></i>
+                            <span class="nav-text">AI Config</span>
+                        </button>
+                    </div>
+                     <div class="nav-item">
+                        <button class="nav-link" data-page="chat-history">
+                            <i class="bi bi-clock-history nav-icon"></i>
+                            <span class="nav-text">Chat History</span>
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" data-page="message-template">
+                            <i class="bi bi-card-text nav-icon"></i>
+                            <span class="nav-text">Message Template</span>
+                        </button>
+                    </div>
+                     <div class="nav-item">
+                        <button class="nav-link" data-page="auto-reply-settings">
+                            <i class="bi bi-gear-fill nav-icon"></i>
+                            <span class="nav-text">Auto Reply Settings</span>
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" data-page="csv-upload">
+                            <i class="bi bi-cloud-arrow-up-fill nav-icon"></i>
+                            <span class="nav-text">CSV upload</span>
+                        </button>
+                    </div>
+                     <div class="nav-item">
+                        <button class="nav-link" data-page="profile">
+                            <i class="fas fa-user nav-icon"></i>
+                            <span class="nav-text">Profile</span>
+                        </button>
+                    </div>
+                    <div class="nav-item">
+                        <button class="nav-link" data-page="devices">
+                            <i class="fas fa-mobile-alt nav-icon"></i>
+                            <span class="nav-text">Manage Devices</span>
+                        </button>
+                    </div>
+                </nav>
+            </div>
+        </div>
+
+        <main class="main-content flex-grow-1 p-4">
+            <div class="container-lg content-wrapper">
+                <h1 class="h3 mb-4">Auto-Reply Settings</h1>
+
+                <!-- Master Control Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body p-4">
+                        <div class="form-check form-switch form-switch-lg">
+                            <input class="form-check-input" type="checkbox" role="switch" id="master-autoreply-switch">
+                            <label class="form-check-label" for="master-autoreply-switch">Enable Auto-Reply</label>
+                        </div>
+                        <small class="text-muted">Turn this on to automatically respond to incoming messages.</small>
+                    </div>
+                </div>
+
+                <!-- This container holds all settings and is hidden when the master switch is off -->
+                <div id="settings-container" class="d-none">
+
+                    <!-- Mode Selection Card -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body p-4">
+                            <h5 class="card-title mb-3">Reply Mode</h5>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" id="mode-toggle-switch">
+                                <label class="form-check-label" for="mode-toggle-switch">
+                                    <span id="mode-label">AI-Powered Replies</span>
+                                </label>
+                            </div>
+                            <small class="text-muted">Toggle for AI-powered responses or switch to a predefined menu-driven bot.</small>
+                        </div>
+                    </div>
+
+                    <!-- AI Mode View -->
+                    <div id="ai-mode-view">
+                        <div class="card shadow-sm text-white bg-primary">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="bi bi-robot" style="font-size: 2.5rem; margin-right: 1rem;"></i>
+                                    <h5 class="card-title mb-0">AI-Powered Replies are Active</h5>
+                                </div>
+                                <p class="card-text mb-3">
+                                    The AI will generate intelligent, context-aware responses based on your business profile and chat history.
+                                </p>
+                                <a href="ai-config.html" class="btn btn-light">Configure AI Personality</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Menu-Driven (Dialog Flow) View -->
+                    <div id="menu-mode-view" class="d-none">
+                        <div class="card shadow-sm">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Dialog Flow Builder</h5>
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createFlowModal">
+                                    <i class="bi bi-plus-lg me-1"></i> Create New Flow
+                                </button>
+                            </div>
+                            <div class="card-body p-3">
+                                <div id="dialog-flow-list" class="list-group list-group-flush">
+                                    <!-- Dialog flows will be rendered here by JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Create/Edit Dialog Flow Modal -->
+    <div class="modal fade" id="createFlowModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Dialog Flow</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="dialog-flow-form">
+                        <div class="mb-3">
+                            <label for="trigger-message" class="form-label">User's Trigger Message</label>
+                            <textarea class="form-control" id="trigger-message" rows="3" placeholder="e.g., pricing, menu, 1" required></textarea>
+                            <small class="text-muted">The keyword or phrase the user will send.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="response-message" class="form-label">Bot's Response</label>
+                            <textarea class="form-control" id="response-message" rows="5" placeholder="e.g., Our pricing is..." required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="parent-flow" class="form-label">Parent Flow (Optional)</label>
+                            <select class="form-select" id="parent-flow">
+                                <option value="">None (This is a top-level trigger)</option>
+                                <!-- Parent options will be populated by JavaScript -->
+                            </select>
+                            <small class="text-muted">Link this flow as a response to a previous one.</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="save-flow-btn">Save Flow</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="./js/sidebar.js"></script>
+    <script src="./js/auto-reply-settings.js"></script> <!-- Renamed JS file -->
+</body>
+</html>
