@@ -8,17 +8,28 @@ dotenv.config();
 
 const activeClients = {};
 
+const MAIN_BACKEND_URL = process.env.MAIN_BACKEND_URL;
 async function restoreAllSessions() {
     console.log('Attempting to restore sessions on startup...');
     try {
         console.log(process.env.VPS_KEY);
         // The request is now a POST to send the auth key in the body
-        const response = await axios.post(`${process.env.MAIN_BACKEND_URL}/api/webhook/get-all-clients`, {
-            // The auth key is sent in the request body
-            auth: process.env.VPS_KEY 
+        const response = await fetch(`${process.env.MAIN_BACKEND_URL}/api/webhook/get-all-clients`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                auth: process.env.VPS_KEY 
+            })
         });
 
-        const clientIdsToRestore = response.data;
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Status ${response.status}: ${errorText}`);
+        }
+
+        const clientIdsToRestore = await response.json();
         
         if (clientIdsToRestore && clientIdsToRestore.length > 0) {
             console.log(`Found ${clientIdsToRestore.length} clients to restore. Initializing now...`);
@@ -31,12 +42,9 @@ async function restoreAllSessions() {
         }
 
     } catch (error) {
-        // Axios provides more detailed error messages, which is helpful for debugging
-        const errorMessage = error.response ? `Status ${error.response.status}: ${error.response.data}` : error.message;
-        console.error('FATAL: Could not restore sessions on startup.', errorMessage);
+        console.error('FATAL: Could not restore sessions on startup.', error.message);
     }
 }
-
 
 function initializeClient(clientId) {
     console.log(`Initializing client for: ${clientId}`);
@@ -152,11 +160,22 @@ async function resumeRunningCampaigns() {
     console.log('Checking for running campaigns to resume...');
     try {
         console.log(process.env.VPS_KEY);
-        const response = await axios.get(`${process.env.MAIN_BACKEND_URL}/api/webhook/running-campaigns`, {
-            auth : process.env.VPS_KEY 
+        const response = await fetch(`${process.env.MAIN_BACKEND_URL}/api/webhook/running-campaigns`, {
+            method: 'POST', // Changed to POST to send auth key in body
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                auth: process.env.VPS_KEY
+            })
         });
 
-        const campaignsToResume = response.data;
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Status ${response.status}: ${errorText}`);
+        }
+
+        const campaignsToResume = await response.json();
         
         if (campaignsToResume && campaignsToResume.length > 0) {
             console.log(`Found ${campaignsToResume.length} campaigns to resume.`);
@@ -179,8 +198,7 @@ async function resumeRunningCampaigns() {
         }
 
     } catch (error) {
-        const errorMessage = error.response ? `Status ${error.response.status}: ${error.response.data}` : error.message;
-        console.error('Could not resume running campaigns:', errorMessage);
+        console.error('Could not resume running campaigns:', error.message);
     }
 }
 

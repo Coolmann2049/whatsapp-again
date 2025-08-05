@@ -2,14 +2,13 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios'); // To send webhooks to the Main Backend
-const { initializeClient, sendTestMessage, activeClients } = require('../controllers/');
+const { initializeClient, sendTestMessage, activeClients } = require('../controllers/initialize');
 const dotenv = require('dotenv');
 
 // Load environment variables
 dotenv.config();
 
 const MAIN_BACKEND_URL = process.env.MAIN_BACKEND_URL;
-
 
 /**
  * Creates and initializes a new whatsapp-web.js client instance.
