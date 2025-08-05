@@ -14,7 +14,7 @@ async function restoreAllSessions() {
         console.log(process.env.VPS_KEY);
         // The request is now a POST to send the auth key in the body
         const response = await fetch(`${process.env.MAIN_BACKEND_URL}/api/webhook/get-all-clients`, {
-            method: 'POST',
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -160,7 +160,7 @@ async function resumeRunningCampaigns() {
     try {
         console.log(process.env.VPS_KEY);
         const response = await fetch(`${process.env.MAIN_BACKEND_URL}/api/webhook/running-campaigns`, {
-            method: 'POST', // Changed to POST to send auth key in body
+            method: 'GET', // Changed to POST to send auth key in body
             headers: {
                 'Content-Type': 'application/json'
             },

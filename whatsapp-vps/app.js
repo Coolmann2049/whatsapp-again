@@ -11,6 +11,11 @@ dotenv.config();
 const app = express();
 
 // Middleware
+app.use((req, res, next) => {
+    console.log(`[INCOMING REQUEST] Method: ${req.method}, Path: ${req.originalUrl}`);
+    next();
+});
+
 app.use(cors({
   origin: process.env.MAIN_BACKEND_URL || 'http://127.0.0.1:5500',
   credentials: true
