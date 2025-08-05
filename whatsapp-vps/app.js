@@ -45,7 +45,7 @@ app.use(vpsAuthMiddleware);
 // Import router files
 const whatsappInitialize = require('./routes/whatsapp-intialize');
 
-const { restoreAllSessions, resumeRunningCampaigns } = require('./controllers'); // Note the simpler path
+const { restoreAllSessions, resumeRunningCampaigns } = require('./controllers/initialize'); // Note the simpler path
 
 app.use('/api', whatsappInitialize);
 
