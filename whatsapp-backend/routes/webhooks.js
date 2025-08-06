@@ -153,7 +153,7 @@ router.post('/process-ai-reply', async (req, res) => {
     }
 });
 
-router.get('/get-all-clients',  async (req, res) => {
+router.post('/get-all-clients',  async (req, res) => {
     try {
         console.log('Worker is requesting list of clients to restore...');
 
@@ -201,7 +201,7 @@ router.get('/get-all-clients',  async (req, res) => {
 
 
 // GET: Worker VPS uses this to get the next contact to message
-router.get('/next-contact/:campaignId', async (req, res) => {
+router.post('/next-contact/:campaignId', async (req, res) => {
     try {
 
         const auth = req.body.auth;

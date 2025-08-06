@@ -14,7 +14,7 @@ async function restoreAllSessions() {
         console.log(process.env.VPS_KEY);
         // The request is now a POST to send the auth key in the body
         const response = await fetch(`${process.env.MAIN_BACKEND_URL}/api/webhook/get-all-clients`, {
-            method: 'GET',
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -103,6 +103,7 @@ function initializeClient(clientId) {
 
     client.on('message', async (message) => {
         try {
+            console.log(message);
             // Ignore messages from groups or status updates, only process direct chats.
             if (message.from.endsWith('@g.us') || message.from.endsWith('@broadcast')) {
                 return;
@@ -160,7 +161,7 @@ async function resumeRunningCampaigns() {
     try {
         console.log(process.env.VPS_KEY);
         const response = await fetch(`${process.env.MAIN_BACKEND_URL}/api/webhook/running-campaigns`, {
-            method: 'GET', // Changed to POST to send auth key in body
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
