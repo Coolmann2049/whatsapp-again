@@ -121,37 +121,6 @@ router.post('/whatsapp-status-update', async (req, res) => {
 // In your webhooksRouter.js
 
 
-// Authenticated by the secret VPS key
-router.post('/process-ai-reply', async (req, res) => {
-    try {
-        const { clientId, contactNumber, messageBody, auth } = req.body;
-
-        if (auth != process.env.VPS_KEY) {
-            return res.status(401).json({ message: 'Unauthorized' });
-        }
-
-        const userId = getUserIdFromClientId(clientId); // Your helper function
-
-        // Get AI config and real chat history
-        const aiConfig = await AiConfiguration.findByPk(userId);
-        const chatHistory = await getChatHistory(contactNumber); // Your DB function
-
-        // Call the shared service with the real history
-        const reply = await generateAiResponse(aiConfig, chatHistory, messageBody);
-
-        // Save the new messages to the database
-        await saveToChatHistory(contactNumber, messageBody, 'user');
-        await saveToChatHistory(contactNumber, reply, 'ai');
-
-        // Command the worker to send the reply
-        // This would be another fetch call to the worker's /send-message endpoint
-        await commandWorkerToSend(clientId, contactNumber, reply);
-        
-        res.sendStatus(200);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to process AI reply.' });
-    }
-});
 
 router.post('/get-all-clients',  async (req, res) => {
     try {
