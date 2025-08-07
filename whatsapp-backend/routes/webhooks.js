@@ -163,7 +163,7 @@ router.post('/get-all-clients',  async (req, res) => {
 
 
 // GET: Worker VPS uses this to get the next contact to message
-router.post('/next-contact/:campaignId', async (req, res) => {
+router.get('/next-contact/:campaignId', async (req, res) => {
     try {
 
         const auth = req.body.auth;

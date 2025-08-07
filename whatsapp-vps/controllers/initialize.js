@@ -103,12 +103,11 @@ function initializeClient(clientId) {
 
     client.on('message', async (message) => {
         try {
-            console.log(message);
             // Ignore messages from groups or status updates, only process direct chats.
             if (message.from.endsWith('@g.us') || message.from.endsWith('@broadcast')) {
                 return;
             }
-
+            console.log(message); 
             // 1. Gather the necessary context
             const contactNumber = message.from.replace('@c.us', ''); // Get the plain phone number
             const messageBody = message.body;

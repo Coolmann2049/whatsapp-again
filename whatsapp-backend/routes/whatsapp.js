@@ -76,7 +76,10 @@ router.post('/send-test-message/:deviceId', async (req, res) => {
     }
 
     fetch(`${process.env.VPS_URL}/api/send-message`, {
-        // ...
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ 
             number: sanitizedNumber, // <-- Use the sanitized number
             message: message,
