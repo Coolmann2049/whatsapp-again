@@ -143,12 +143,12 @@ async function sendTestMessage(client, number, message) {
         
         // Send the message
         const sentMessage = await client.sendMessage(chatId, message);
-        console.log(`[${client.info.me.user}] Successfully sent test message to ${number}`);
+        console.log(`[${client.info.wid}] Successfully sent test message to ${number}`);
         console.log(sentMessage);
         // Return the confirmation from the library
         return sentMessage;
     } catch (error) {
-        console.error(`[${client.info.me.user}] Failed to send message to ${number}:`, error);
+        console.error(`[${client.info.wid}] Failed to send message to ${number}:`, error);
         // Throw the error so the endpoint can catch it and send a 500 response
         throw new Error('Failed to send message. The number might be invalid or not on WhatsApp.');
     }
