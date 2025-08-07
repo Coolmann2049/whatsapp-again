@@ -207,7 +207,7 @@ router.post('/next-contact/:campaignId', async (req, res) => {
 });
 
 // POST: Worker VPS uses this to update a contact's status after sending
-router.post('/worker/update-status', async (req, res) => {
+router.post('/update-status', async (req, res) => {
     try {
         const { campaignContactId, status , auth} = req.body; // status will be 'sent' or 'failed'
         

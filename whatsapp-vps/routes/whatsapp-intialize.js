@@ -94,4 +94,33 @@ router.post('/send-test-message', async (req, res) => {
     }
 });
 
+router.post('/process-campaign', (req, res) => {
+    try {
+        // 1. Get the data from the request body
+        const { campaignId, clientId, auth } = req.body;
+
+        // 2. Authenticate the request from the Main Backend
+        if (auth !== process.env.VPS_KEY) {
+            return res.status(401).send('Unauthorized');
+        }
+
+        // 3. Validate the required data
+        if (!campaignId || !clientId) {
+            return res.status(400).send('campaignId and clientId are required.');
+        }
+
+        // 4. Start the background job.
+        // We do not await this, so the try...catch here will only catch
+        // synchronous errors if the processCampaign function itself fails to start.
+        processCampaign(campaignId, clientId);
+
+        // 5. Immediately send a success response to the Main Backend
+        res.status(200).json({ message: 'Campaign processing has been successfully initiated.' });
+
+    } catch (error) {
+        // 6. Catch any synchronous errors that occurred
+        console.error('CRITICAL ERROR: Failed to initiate campaign process.', error);
+        res.status(500).json({ error: 'Failed to start campaign on the worker.' });
+    }
+});
 module.exports = router;
