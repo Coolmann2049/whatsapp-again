@@ -69,7 +69,7 @@ router.post('/disconnect-session', async (req, res) => {
     }
 });
 
-router.post('/send-test-message', async (req, res) => {
+router.post('/send-message', async (req, res) => {
     const { clientId, number, message } = req.body;
 
     // 1. Validate the incoming request

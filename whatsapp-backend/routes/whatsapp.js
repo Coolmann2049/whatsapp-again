@@ -75,7 +75,7 @@ router.post('/send-test-message/:deviceId', async (req, res) => {
         return res.status(400).json({ message: 'Invalid phone number format provided.' });
     }
 
-    fetch(`${process.env.VPS_URL}/api/send-test-message`, {
+    fetch(`${process.env.VPS_URL}/api/send-message`, {
         // ...
         body: JSON.stringify({ 
             number: sanitizedNumber, // <-- Use the sanitized number
@@ -142,7 +142,7 @@ router.post('/campaigns/:id/start', async (req, res) => {
             },
             body: JSON.stringify({
                 campaignId: campaign.id,
-                clientId: `${userId}_${req.session.email}_${campaign.deviceId}`,
+                clientId: `${campaign.client_id}`,
                 auth: process.env.VPS_KEY
             })
         });
