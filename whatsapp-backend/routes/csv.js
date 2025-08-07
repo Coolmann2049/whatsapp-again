@@ -75,7 +75,6 @@ router.get('/upload-history', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-
 router.post('/upload-contacts', upload.single('csvFile'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
@@ -84,19 +83,18 @@ router.post('/upload-contacts', upload.single('csvFile'), async (req, res) => {
     const filePath = req.file.path;
     const contacts = [];
     let errorCount = 0;
+    let historyRecord; // Define here to be accessible in catch/finally
 
     try {
-        // Step 1: Create the UploadHistory record first to get its ID
-        const historyRecord = await UploadHistory.create({
+        historyRecord = await UploadHistory.create({
             file_name: req.file.originalname,
-            status: 'Processing', // Start with a processing status
+            status: 'Processing',
             userId: req.session.userId
         });
         const uploadHistoryId = historyRecord.id;
 
-        // Step 2: Parse the CSV and add the new uploadHistoryId to each contact
         await new Promise((resolve, reject) => {
-            fs.createReadStream(filePath)
+            fs.createReadStream(req.file.path) // Use req.file.path directly
                 .pipe(csv({ skipEmptyLines: true }))
                 .on('data', (row) => {
                     const cleanRow = {};
@@ -105,18 +103,24 @@ router.post('/upload-contacts', upload.single('csvFile'), async (req, res) => {
                         cleanRow[cleanKey] = row[key] ? row[key].trim() : '';
                     });
                     
-                    if (cleanRow.phone) {
+                    // --- SANITIZATION LOGIC ---
+                    const rawPhone = cleanRow.phone;
+                    const sanitizedPhone = sanitizePhoneNumber(rawPhone); // Sanitize the number
+
+                    if (sanitizedPhone) { // Check if the sanitized number is valid
                         contacts.push({
                             name: cleanRow.name || '',
-                            phone: cleanRow.phone,
+                            phone: sanitizedPhone, // Use the sanitized number
                             email: cleanRow.email || '',
                             company: cleanRow.company || '',
                             userId: req.session.userId,
-                            uploadHistoryId: uploadHistoryId // <-- Add the foreign key here
+                            uploadHistoryId: uploadHistoryId
                         });
                     } else {
+                        console.log(`Row skipped - invalid phone number found: ${rawPhone}`);
                         errorCount++;
                     }
+                    // --- END OF SANITIZATION LOGIC ---
                 })
                 .on('end', resolve)
                 .on('error', reject);
@@ -125,16 +129,14 @@ router.post('/upload-contacts', upload.single('csvFile'), async (req, res) => {
         if (contacts.length === 0) {
             await historyRecord.update({ status: 'Failed' });
             return res.status(400).json({ 
-                error: 'No valid contacts found. Please ensure your CSV has a "phone" column.' 
+                error: 'No valid contacts found. Please ensure your CSV has a "phone" column with valid numbers.' 
             });
         }
 
-        // Step 3: Save contacts to the database using bulkCreate
         await Contact.bulkCreate(contacts, {
-            updateOnDuplicate: ["name", "email", "company"] // This will update contacts if a phone+userId combo already exists
+            updateOnDuplicate: ["name", "email", "company"]
         });
 
-        // Step 4: Update the history record with the final counts and status
         await historyRecord.update({
             status: 'Completed',
             total_contacts: contacts.length
@@ -149,16 +151,32 @@ router.post('/upload-contacts', upload.single('csvFile'), async (req, res) => {
 
     } catch (error) {
         console.error('UPLOAD ERROR:', error);
-        // If an error occurs, try to update the history record to 'Failed'
         if (historyRecord) {
             await historyRecord.update({ status: 'Failed' }).catch(e => console.error("Failed to update history on error:", e));
         }
         res.status(500).json({ error: 'Failed to process file' });
     } finally {
-        // Step 5: Clean up the uploaded file
         await fs.unlink(filePath);
     }
 });
+
+function sanitizePhoneNumber(rawPhoneNumber) {
+    if (!rawPhoneNumber || typeof rawPhoneNumber !== 'string') {
+        return null;
+    }
+    // Remove all non-digit characters
+    const digitsOnly = rawPhoneNumber.replace(/\D/g, '');
+
+    if (digitsOnly.length === 12 && digitsOnly.startsWith('91')) {
+        // Already in correct format (e.g., 919876543210)
+        return digitsOnly;
+    } else if (digitsOnly.length === 10) {
+        // Standard 10-digit mobile number, prepend country code
+        return '91' + digitsOnly;
+    }
+    // Invalid length
+    return null;
+}
 
 
 module.exports = router;

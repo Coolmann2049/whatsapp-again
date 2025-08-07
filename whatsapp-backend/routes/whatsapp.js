@@ -62,20 +62,23 @@ router.post('/send-test-message/:deviceId', async (req, res) => {
     if (!deviceId || !number || !message) {
         return res.status(400).json({ message: 'clientId, number, and message are required.' });
     }
-    console.log(`${process.env.VPS_URL}/api/send-test-message`)
     console.log({ 
             number: number,
             message: message,
             clientId: clientId,
             auth: process.env.VPS_KEY,
         });
+        
+    const sanitizedNumber = sanitizePhoneNumber(number);
+
+    if (!sanitizedNumber) {
+        return res.status(400).json({ message: 'Invalid phone number format provided.' });
+    }
+
     fetch(`${process.env.VPS_URL}/api/send-test-message`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        // ...
         body: JSON.stringify({ 
-            number: number,
+            number: sanitizedNumber, // <-- Use the sanitized number
             message: message,
             clientId: clientId,
             auth: process.env.VPS_KEY,
@@ -155,6 +158,29 @@ router.post('/campaigns/:id/start', async (req, res) => {
         res.status(500).json({ error: 'Failed to start campaign.' });
     }
 });
+
+
+
+function sanitizePhoneNumber(rawPhoneNumber) {
+    if (!rawPhoneNumber || typeof rawPhoneNumber !== 'string') {
+        return null;
+    }
+
+    // 1. Remove all non-digit characters (+, spaces, dashes, etc.)
+    const digitsOnly = rawPhoneNumber.replace(/\D/g, '');
+
+    // 2. Handle the different formats for Indian numbers
+    if (digitsOnly.length === 12 && digitsOnly.startsWith('91')) {
+        // Already in the correct format (e.g., 919876543210)
+        return digitsOnly;
+    } else if (digitsOnly.length === 10) {
+        // Standard 10-digit mobile number, prepend the country code
+        return '91' + digitsOnly;
+    }
+
+    // If it doesn't match a known valid length, it's an invalid number
+    return null;
+}
 
 
 module.exports = router;

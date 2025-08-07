@@ -44,7 +44,9 @@ router.post('/campaigns', async (req, res) => {
         // Step 3: Prepare the data for the linking table
         const campaignContactsData = contactsToInclude.map(contact => ({
             campaign_id: newCampaign.id,
-            contact_id: contact.id
+            contact_id: contact.id,
+            userId: userId,
+
             // Status defaults to 'pending'
         }));
 
