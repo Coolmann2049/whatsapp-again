@@ -63,6 +63,12 @@ router.post('/send-test-message/:deviceId', async (req, res) => {
         return res.status(400).json({ message: 'clientId, number, and message are required.' });
     }
     console.log(`${process.env.VPS_URL}/api/send-test-message`)
+    console.log({ 
+            number: number,
+            message: message,
+            clientId: clientId,
+            auth: process.env.VPS_KEY,
+        });
     fetch(`${process.env.VPS_URL}/api/send-test-message`, {
         method: 'POST',
         headers: {
@@ -77,7 +83,6 @@ router.post('/send-test-message/:deviceId', async (req, res) => {
     })
     .then(response => {
         if (!response.ok) {
-            console.log(response);
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();

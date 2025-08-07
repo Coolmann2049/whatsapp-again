@@ -5,12 +5,6 @@ const router = express.Router();
 const { UserID } = require('../models');
 
 
-
-// The login page is unprotected
-router.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
-});
-
 // The root path serves the dashboard, but only if logged in
 router.get('/', authMiddleware, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'dashboard.html'));

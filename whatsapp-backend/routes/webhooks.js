@@ -40,83 +40,76 @@ router.post('/whatsapp-qr-update', async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
-
 router.post('/whatsapp-status-update', async (req, res) => {
     const { clientId, status, userName, userPhone, auth } = req.body;
 
-    if (auth != process.env.VPS_KEY) {
+    if (auth !== process.env.VPS_KEY) {
         return res.status(401).json({ message: 'Unauthorized' });
     }
 
     try {
         const userId = clientId.split('_')[0];
         const email = clientId.split('_')[1];
-        const count = clientId.split('_')[2];
+        const deviceId = clientId.split('_')[2]; // Use this as the unique ID
 
-        // Find the user by clientId
         const user = await UserID.findOne({ where: { userId } });
-
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
+        // Safely parse the existing devices array from the JSON string
+        let devices = user.devices_data ? JSON.parse(user.devices_data) : [];
+
+        // Find the index of the device if it already exists in the array
+        const existingDeviceIndex = devices.findIndex(d => d.id === deviceId);
+
         if (status === 'connected') {
-
-            user.count++;
-            
             const deviceData = {
+                id: deviceId,
                 clientId,
-                id: count,
                 name: userName,
-                status,
-                phone: userPhone
+                status: 'connected',
+                phone: userPhone,
+                lastActive: new Date().toISOString() // It's good practice to add a timestamp
             };
-            let devices = JSON.parse(user.devices_data);
-            devices.push(deviceData);
-            user.devices_data = JSON.stringify(devices);
 
-            console.log(devices);
-
-            await user.save();
-
+            if (existingDeviceIndex > -1) {
+                // --- UPDATE THE EXISTING DEVICE ---
+                console.log(`Device ${deviceId} reconnected. Updating its status.`);
+                devices[existingDeviceIndex] = deviceData;
+            } else {
+                // --- ADD A TRULY NEW DEVICE ---
+                console.log(`New device ${deviceId} connected. Adding to the list.`);
+                devices.push(deviceData);
+                // Only increment the user's total device count when a new one is added
+                user.count++; 
+            }
         } else if (status === 'disconnected') {
-
-            console.log(user.count);
-
-            user.count--;
-
-            console.log(user.count);
-            const deviceData = {
-                clientId,
-                id: count,
-                name: userName,
-                status,
-                phone: userPhone
-            };
-            let devices = JSON.parse(user.devices_data);
-            devices = devices.filter(device => device.id !== deviceData.id);
-            user.devices_data = JSON.stringify(devices);
-
-            await user.save();
+            // --- MARK THE DEVICE AS DISCONNECTED ---
+            // We don't remove the device or decrement the count, just update its status.
+            if (existingDeviceIndex > -1) {
+                console.log(`Device ${deviceId} disconnected. Updating status.`);
+                devices[existingDeviceIndex].status = 'disconnected';
+            }
         }
 
-        const io = req.io;                    // Access the io instance
-
-        io.to(email).emit('device-update', { 
-            id: count,
-            status,
-            name: userName,
-            phone: userPhone
-        });
-        console.log ('yay');
+        // Save the updated array back to the database
+        user.devices_data = JSON.stringify(devices);
+        await user.save();
+        
+        // --- SOCKET.IO UPDATE ---
+        // Send the entire, updated list of devices to the frontend.
+        // This is more robust and simplifies the frontend logic.
+        const io = req.io;
+        io.to(email).emit('device-update', { devices });
+        
         res.status(200).json({ message: 'Status updated successfully' });
 
-
     } catch (error) {
-        console.error('Error updating QR code:', error);
+        console.error('Error updating device status:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
-})
+});
 
 // In your webhooksRouter.js
 
@@ -234,7 +227,7 @@ router.post('/worker/update-status', async (req, res) => {
     }
 });
 
-router.get('/running-campaigns', async (req, res) => {
+router.post('/running-campaigns', async (req, res) => {
     try {
 
         const auth = req.body.auth;

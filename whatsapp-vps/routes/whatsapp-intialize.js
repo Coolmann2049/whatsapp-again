@@ -88,6 +88,7 @@ router.post('/send-test-message', async (req, res) => {
         await sendTestMessage(client, number, message);
         res.status(200).json({ message: 'Test message sent successfully!' });
     } catch (error) {
+        console.log(error);
         // 4. Handle any errors from the sendTestMessage function
         res.status(500).json({ message: error.message });
     }
