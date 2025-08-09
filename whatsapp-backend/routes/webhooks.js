@@ -166,11 +166,11 @@ router.post('/get-all-clients',  async (req, res) => {
 router.get('/next-contact/:campaignId', async (req, res) => {
     try {
 
-        const auth = req.body.auth;
+        const auth = req.query.auth;
         if (auth != process.env.VPS_KEY) {
             return res.status(401).json({ message: 'Unauthorized' });
         }
-
+        console.log('reached here');
         const { campaignId } = req.params;
 
         // Find the campaign and its template
@@ -189,6 +189,8 @@ router.get('/next-contact/:campaignId', async (req, res) => {
         });
 
         if (!campaignContact) {
+            console.log('Found next contact');
+
             // No more pending contacts
             await campaign.update({ status: 'Completed' });
             return res.json(null); // Signal to the worker that the campaign is done

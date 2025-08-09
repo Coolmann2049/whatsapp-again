@@ -72,7 +72,7 @@ router.post('/send-test-message/:deviceId', async (req, res) => {
     const sanitizedNumber = sanitizePhoneNumber(number);
 
     if (!sanitizedNumber) {
-        return res.status(400).json({ message: 'Invalid phone number format provided.' });
+        return res.status(400).json({ message: `Invalid phone number format provided. ${number}` });
     }
 
     fetch(`${process.env.VPS_URL}/api/send-message`, {

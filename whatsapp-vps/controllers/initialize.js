@@ -57,6 +57,13 @@ function initializeClient(clientId) {
         }
     });
 
+    const initTimeout = setTimeout(() => {
+            console.error(`[${clientId}] Initialization timed out after 90 seconds.`);
+            // Destroy the client to clean up the browser process
+            client.destroy(); 
+            reject(new Error(`Initialization timed out for ${clientId}`));
+        }, 90000); // 90 seconds in milliseconds
+
     // --- Event Listeners for this specific client ---
 
     client.on('qr', (qr) => {
@@ -67,6 +74,8 @@ function initializeClient(clientId) {
 
     client.on('ready', () => {
         console.log(`[${clientId}] Client is ready!`);
+
+        clearTimeout(initTimeout); 
 
         // Access information about the logged-in account
         const userName = client.info.pushname;
@@ -107,15 +116,17 @@ function initializeClient(clientId) {
             if (message.from.endsWith('@g.us') || message.from.endsWith('@broadcast')) {
                 return;
             }
-            console.log(message); 
+            console.log(message.from); 
             // 1. Gather the necessary context
             const contactNumber = message.from.replace('@c.us', ''); // Get the plain phone number
             const messageBody = message.body;
 
+            console.log(contactNumber);
+
             console.log(`[${clientId}] Received message from ${contactNumber}. Forwarding to Main Backend.`);
 
             // 2. Send the data to the master webhook on the Main Backend
-            await axios.post(`${process.env.MAIN_BACKEND_URL}/api/webhooks/process-incoming-message`, {
+            await axios.post(`${process.env.MAIN_BACKEND_URL}/api/webhook/process-incoming-message`, {
                 clientId: clientId,
                 contactNumber: contactNumber,
                 messageBody: messageBody,
@@ -125,8 +136,8 @@ function initializeClient(clientId) {
         } catch (error) {
             // Log any errors that occur while trying to send the webhook
             const errorMessage = error.response ? `Status ${error.response.status}` : error.message;
-            console.error(`[${clientId}] Failed to forward message from ${contactNumber} to Main Backend. Error: ${errorMessage}`);
-        }
+            console.log(errorMessage);
+        }  
     });
 
     // Start the initialization process
@@ -223,9 +234,9 @@ async function processCampaign(campaignId, clientId) {
     while (true) {
         try {
             // 1. Get the next contact from the Main Backend
-            const response = await axios.get(`${process.env.MAIN_BACKEND_URL}/api/webhook/next-contact/${campaignId}`, {
-                auth: process.env.VPS_KEY 
-            });
+            const url = `${process.env.MAIN_BACKEND_URL}/api/webhook/next-contact/${campaignId}?auth=${process.env.VPS_KEY}`;
+            const response = await axios.get(url);
+
 
             const nextTask = response.data;
 
