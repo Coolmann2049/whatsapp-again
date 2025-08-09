@@ -62,6 +62,15 @@ async function initializeDatabase() {
     ChatMessage.belongsTo(Contact, {
         foreignKey: 'contact_id'
     });
+    // A CampaignContact record belongs to one Contact
+    CampaignContacts.belongsTo(Contact, {
+        foreignKey: 'contact_id'
+    });
+
+    // A Contact can be part of many campaigns (and thus have many CampaignContact records)
+    Contact.hasMany(CampaignContacts, {
+        foreignKey: 'contact_id'
+    });
 
 
     
