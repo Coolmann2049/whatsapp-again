@@ -14,13 +14,13 @@ function initializeSocket(io) {
 
             const userId = userSession.userId;
             const email = userSession.email;
-
+            const sanitizedEmail = email.replace(/[^a-zA-Z0-9_-]/g, '-');
             const user = await UserID.findByPk(userId);
 
             console.log(`✅ User connected via WebSocket: ${email}`);
             
             // Join a room named after the user. This is crucial for sending targeted messages.
-            socket.join(email.replace(/[^a-zA-Z0-9_-]/g, '_'));
+            socket.join(sanitizedEmail);
 
             socket.on('disconnect', () => {
                 console.log(`❌ User disconnected: ${email}`);
@@ -41,7 +41,7 @@ function initializeSocket(io) {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ 
-                        clientId: `${userId}_${email.replace(/[^a-zA-Z0-9_-]/g, '_')}_${user.count}`,
+                        clientId: `${userId}_${sanitizedEmail}_${user.count}`,
                         auth: process.env.VPS_KEY,
                     }),
                 })
