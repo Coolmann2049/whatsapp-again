@@ -72,7 +72,13 @@ async function initializeDatabase() {
         foreignKey: 'contact_id'
     });
 
-
+    // This is the association you are missing
+    Campaign.hasMany(CampaignContacts, {
+        foreignKey: 'campaign_id'
+    });
+    CampaignContacts.belongsTo(Campaign, {
+        foreignKey: 'campaign_id'
+    });
     
   } catch (error) {
     console.error('Unable to initialize database:', error);

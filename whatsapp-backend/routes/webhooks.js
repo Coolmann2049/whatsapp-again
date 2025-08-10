@@ -195,7 +195,13 @@ router.get('/next-contact/:campaignId', async (req, res) => {
             await campaign.update({ status: 'Completed' });
             return res.json(null); // Signal to the worker that the campaign is done
         }
-            const sanitizedPhone = sanitizePhoneNumber(campaignContact.Contact.phone);
+        if (campaign.status !== 'Running') {
+            console.log(`Campaign ${campaignId} is not in 'Running' state. Current status: ${campaign.status}. Stopping worker.`);
+            // Signal to the worker that the job is done for now.
+            return res.json(null);
+        }
+        
+        const sanitizedPhone = sanitizePhoneNumber(campaignContact.Contact.phone);
 
 
         // Send back all necessary data for the worker
