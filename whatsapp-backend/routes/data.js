@@ -230,7 +230,7 @@ router.get('/campaign-creation-data', async (req, res) => {
         const devicesWithClientId = devices.map(device => {
             return {
                 ...device, // Keep all original device properties (id, name, status, etc.)
-                clientId: `${userId}_${user.email}_${device.id}` // Add the correctly formatted clientId
+                clientId: `${userId}_${user.email.replace(/[^a-zA-Z0-9_-]/g, '_')}_${device.id}` // Add the correctly formatted clientId
             };
         }); 
 

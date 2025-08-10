@@ -46,105 +46,104 @@ async function restoreAllSessions() {
 }
 
 function initializeClient(clientId) {
-    console.log(`Initializing client for: ${clientId}`);
-
-    const client = new Client({
-        // Use LocalAuth to save session data, ensuring each client has their own folder
-        authStrategy: new LocalAuth({ clientId: clientId }),
-        puppeteer: {
-            headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        }
-    });
-
-    const initTimeout = setTimeout(() => {
-            console.error(`[${clientId}] Initialization timed out after 90 seconds.`);
-            // Destroy the client to clean up the browser process
-            client.destroy(); 
-            reject(new Error(`Initialization timed out for ${clientId}`));
-        }, 90000); // 90 seconds in milliseconds
-
-    // --- Event Listeners for this specific client ---
-
-    client.on('qr', (qr) => {
-        console.log(`[${clientId}] QR Code received. Sending to Main Backend.`);
-        // Send the QR code back to your Main Backend to be relayed to the frontend
-        axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-qr-update`, { clientId, qrCode: qr, auth: process.env.VPS_KEY });
-    });
-
-    client.on('ready', () => {
-        console.log(`[${clientId}] Client is ready!`);
-
-        clearTimeout(initTimeout); 
-
-        // Access information about the logged-in account
-        const userName = client.info.pushname;
-        const userPhone = client.info.wid.user;
-
-        console.log(userName , userPhone);
-        // Notify the Main Backend that the connection is successful
-        axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
-            clientId, 
-            status: 'connected',
-            userName,
-            userPhone,
-            auth: process.env.VPS_KEY
-        });
-    });
-
-    client.on('disconnected', (reason) => {
-        console.log(`[${clientId}] Client was logged out. Reason:`, reason);
-
-        const userName = client.info.pushname;
-        const userPhone = client.info.wid.user;
-
-        axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
-            clientId, 
-            status: 'disconnected',
-            userName,
-            userPhone,
-            auth: process.env.VPS_KEY
-        });
-
-        // Clean up the disconnected client
-        delete activeClients[clientId];
-    });
-
-    client.on('message', async (message) => {
+    // This Promise wrapper makes the function "thenable" and provides resolve/reject
+    return new Promise((resolve, reject) => {
         try {
-            // Ignore messages from groups or status updates, only process direct chats.
-            if (message.from.endsWith('@g.us') || message.from.endsWith('@broadcast')) {
-                return;
-            }
-            console.log(message.from); 
-            // 1. Gather the necessary context
-            const contactNumber = message.from.replace('@c.us', ''); // Get the plain phone number
-            const messageBody = message.body;
+            console.log(`Initializing client for: ${clientId}`);
 
-            console.log(contactNumber);
-
-            console.log(`[${clientId}] Received message from ${contactNumber}. Forwarding to Main Backend.`);
-
-            // 2. Send the data to the master webhook on the Main Backend
-            await axios.post(`${process.env.MAIN_BACKEND_URL}/api/webhook/process-incoming-message`, {
-                clientId: clientId,
-                contactNumber: contactNumber,
-                messageBody: messageBody,
-                auth: process.env.VPS_KEY // Your secret key for authentication
+            const client = new Client({
+                authStrategy: new LocalAuth({ clientId: clientId }),
+                puppeteer: {
+                    headless: true,
+                    args: ['--no-sandbox', '--disable-setuid-sandbox']
+                }
             });
 
+            let clientInfo = {}; // To safely store client info on 'ready'
+
+            const initTimeout = setTimeout(() => {
+                console.error(`[${clientId}] Initialization timed out after 90 seconds.`);
+                client.destroy(); 
+                reject(new Error(`Initialization timed out for ${clientId}`));
+            }, 90000);
+
+            // --- Event Listeners ---
+
+            client.on('qr', (qr) => {
+                console.log(`[${clientId}] QR Code received. Sending to Main Backend.`);
+                axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-qr-update`, { clientId, qrCode: qr, auth: process.env.VPS_KEY });
+            });
+
+            client.on('ready', () => {
+                console.log(`[${clientId}] Client is ready!`);
+                clearTimeout(initTimeout); 
+
+                // Safely store client info now that it's available
+                clientInfo = {
+                    name: client.info.pushname,
+                    phone: client.info.wid.user
+                };
+                
+                console.log(clientInfo.name, clientInfo.phone);
+                axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
+                    clientId, 
+                    status: 'connected',
+                    userName: clientInfo.name,
+                    userPhone: clientInfo.phone,
+                    auth: process.env.VPS_KEY
+                });
+                resolve(); // Signal that the promise succeeded
+            });
+
+            client.on('disconnected', (reason) => {
+                console.log(`[${clientId}] Client was logged out. Reason:`, reason);
+                // Use the safely stored clientInfo instead of relying on the disconnected client object
+                axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
+                    clientId, 
+                    status: 'disconnected',
+                    userName: clientInfo.name, // Use last known name
+                    userPhone: clientInfo.phone, // Use last known phone
+                    auth: process.env.VPS_KEY
+                });
+                delete activeClients[clientId];
+            });
+
+            client.on('message', async (message) => {
+                let contactNumber;
+                try {
+                    if (message.from.endsWith('@g.us') || message.from.endsWith('@broadcast')) return;
+                    
+                    contactNumber = message.from.replace('@c.us', '');
+                    const messageBody = message.body;
+
+                    console.log(`[${clientId}] Received message from ${contactNumber}. Forwarding to Main Backend.`);
+                    
+                    await axios.post(`${process.env.MAIN_BACKEND_URL}/api/webhook/process-incoming-message`, {
+                        clientId: clientId,
+                        contactNumber: contactNumber,
+                        messageBody: messageBody,
+                        auth: process.env.VPS_KEY
+                    });
+                } catch (error) {
+                    const errorMessage = error.response ? `Status ${error.response.status}` : error.message;
+                    console.error(`[${clientId}] Failed to forward message from ${contactNumber || 'unknown'}. Error: ${errorMessage}`);
+                }   
+            });
+
+            // Start the initialization process, ensuring any errors are caught
+            client.initialize().catch(err => {
+                clearTimeout(initTimeout);
+                reject(err); // Reject the promise if initialization fails
+            });
+
+            activeClients[clientId] = client;
+
         } catch (error) {
-            // Log any errors that occur while trying to send the webhook
-            const errorMessage = error.response ? `Status ${error.response.status}` : error.message;
-            console.log(errorMessage);
-        }  
+            // This will catch any synchronous errors during setup
+            console.error(`[${clientId}] A critical error occurred during client setup:`, error);
+            reject(error);
+        }
     });
-
-    // Start the initialization process
-    client.initialize();
-
-    // 2. Store the new client instance in our container
-    activeClients[clientId] = client;
 }
 
 async function sendTestMessage(client, number, message) {

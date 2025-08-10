@@ -22,7 +22,7 @@ router.delete('/delete-device/:deviceId', async (req, res) => {
             return res.status(400).json({ message: 'Client ID is required' });
         }
 
-        const clientId = `${userId}_${email}_${deviceId}`
+        const clientId = `${userId}_${email.replace(/[^a-zA-Z0-9_-]/g, '_')}_${deviceId}`
 
         fetch(`${process.env.VPS_URL}/api/disconnect-session`, {
             method: 'POST',
@@ -56,8 +56,8 @@ router.delete('/delete-device/:deviceId', async (req, res) => {
 router.post('/send-test-message/:deviceId', async (req, res) => {
     const { deviceId } = req.params;
     const { number, message } = req.body;
-
-    const clientId = `${req.session.userId}_${req.session.email}_${deviceId}`
+    const email = req.session.email
+    const clientId = `${req.session.userId}_${email.replace(/[^a-zA-Z0-9_-]/g, '_')}_${deviceId}`
 
     if (!deviceId || !number || !message) {
         return res.status(400).json({ message: 'clientId, number, and message are required.' });

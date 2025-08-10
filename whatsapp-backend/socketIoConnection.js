@@ -20,7 +20,7 @@ function initializeSocket(io) {
             console.log(`✅ User connected via WebSocket: ${email}`);
             
             // Join a room named after the user. This is crucial for sending targeted messages.
-            socket.join(email);
+            socket.join(email.replace(/[^a-zA-Z0-9_-]/g, '_'));
 
             socket.on('disconnect', () => {
                 console.log(`❌ User disconnected: ${email}`);
