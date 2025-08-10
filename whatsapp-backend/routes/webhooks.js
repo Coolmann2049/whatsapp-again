@@ -334,7 +334,7 @@ router.post('/process-incoming-message', async (req, res) => {
         // --- Step 3: Check for an Active Campaign Reply ---
         const campaignContact = await CampaignContacts.findOne({
             where: { contact_id: contact.id, status: 'sent' },
-            include: [{ model: Campaign, where: { deviceId: deviceId, status: 'Running' } }],
+            include: [{ model: Campaign, where: { client_id: clientId, status: 'Running' } }],
             order: [['sent_at', 'DESC']]
         });
 

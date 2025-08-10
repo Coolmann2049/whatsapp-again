@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Messages are fetched newest first, so we reverse for chronological display
         messagesState.list.slice().reverse().forEach(msg => {
-            const messageSide = msg.sender === 'user' ? 'user-message' : 'bot-message';
+            const messageSide = msg.sender === 'bot' ? 'user-message' : 'bot-message';
             const messageHtml = `
                 <div class="message-container ${messageSide}">
                     <div class="message-bubble">
