@@ -347,7 +347,7 @@ router.post('/process-incoming-message', async (req, res) => {
         // --- Step 4: Decide on the Reply Strategy (AI vs. Keyword vs. Off) ---
 
         console.log(contact);
-        if (contact.is_manual_mode === 1) {
+        if (contact.is_manual_mode) {
             console.log(contact.is_manual_mode);
             console.log(typeof(contact.is_manual_mode))
             console.log(`Auto-reply is turned off for this contact. No reply will be sent.`);
