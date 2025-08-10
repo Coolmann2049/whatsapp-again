@@ -340,14 +340,13 @@ router.post('/process-incoming-message', async (req, res) => {
         });
 
         if (campaignContact) {
-            ;
-            
-
             await campaignContact.update({ status: 'replied', replied_at: new Date() });
             console.log(`Attributed reply from ${contactNumber} to campaign ID ${campaignContact.campaign_id}`);
         }
 
         // --- Step 4: Decide on the Reply Strategy (AI vs. Keyword vs. Off) ---
+
+        console.log(contact);
         if (contact.is_manual_mode === 1) {
             console.log(contact.is_manual_mode);
             console.log(typeof(contact.is_manual_mode))
