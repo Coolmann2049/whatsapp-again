@@ -189,7 +189,7 @@ router.get('/next-contact/:campaignId', async (req, res) => {
         });
 
         if (!campaignContact) {
-            console.log('Found next contact');
+            console.log('Didnt find next contact');
 
             // No more pending contacts
             await campaign.update({ status: 'Completed' });

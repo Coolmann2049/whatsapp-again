@@ -239,7 +239,7 @@ async function processCampaign(campaignId, clientId) {
 
 
             const nextTask = response.data;
-
+            console.log(nextTask);
             // 2. Check if the campaign is finished
             if (!nextTask) {
                 console.log(`[${clientId}] Campaign ${campaignId} completed. Exiting loop.`);
