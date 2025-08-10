@@ -41,7 +41,7 @@ function initializeSocket(io) {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ 
-                        clientId: `${userId}_${email}_${user.count}`,
+                        clientId: `${userId}_${email.replace(/[^a-zA-Z0-9_-]/g, '_')}_${user.count}`,
                         auth: process.env.VPS_KEY,
                     }),
                 })
