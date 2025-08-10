@@ -340,6 +340,11 @@ router.post('/process-incoming-message', async (req, res) => {
         });
 
         if (campaignContact) {
+
+            if (campaignContact.is_manual_mode === 1) {
+                console.log(`Auto-reply is turned off for this contact. No reply will be sent.`);
+                return; // Stop processing
+            }
             await campaignContact.update({ status: 'replied', replied_at: new Date() });
             console.log(`Attributed reply from ${contactNumber} to campaign ID ${campaignContact.campaign_id}`);
         }
@@ -357,8 +362,20 @@ router.post('/process-incoming-message', async (req, res) => {
         if (user.reply_mode === 'ai') {
             console.log('ai mode');
             const aiConfig = await AiConfiguration.findByPk(userId);
-            const chatHistory = []; // We would fetch this in a real scenario
-            botReply = await generateAiResponse(aiConfig, chatHistory, messageBody);
+            const chatHistory = await ChatMessage.findAll({
+                where: {
+                    userId: userId,
+                    contact_id: contact.id
+                },
+                order: [['timestamp', 'DESC']], // Get the most recent messages
+                limit: 10 // Limit to the last 10 messages for context
+            });
+
+            // The AI needs the history in chronological order (oldest to newest)
+            // so we reverse the array we just fetched.
+            const reversedHistory = chatHistory.reverse(); 
+            console.log(reversedHistory);
+            botReply = await generateAiResponse(aiConfig, reversedHistory, messageBody);
         } else if (user.reply_mode === 'keyword') {
             // Keyword Bot Logic
             const dialogFlows = await DialogFlows.findAll({ where: { userId } });
