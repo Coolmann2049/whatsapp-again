@@ -195,11 +195,12 @@ router.get('/next-contact/:campaignId', async (req, res) => {
             await campaign.update({ status: 'Completed' });
             return res.json(null); // Signal to the worker that the campaign is done
         }
+        const sanitizedPhone = sanitizePhoneNumber(campaignContact.Contact);
 
         // Send back all necessary data for the worker
         res.json({
             campaignContactId: campaignContact.id,
-            contact: campaignContact.Contact,
+            contact: sanitizedPhone,
             templateContent: campaign.template.content
         });
     } catch (error) {
@@ -207,6 +208,28 @@ router.get('/next-contact/:campaignId', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+
+function sanitizePhoneNumber(rawPhoneNumber) {
+    if (!rawPhoneNumber || typeof rawPhoneNumber !== 'string') {
+        return null;
+    }
+
+    // 1. Remove all non-digit characters (+, spaces, dashes, etc.)
+    const digitsOnly = rawPhoneNumber.replace(/\D/g, '');
+
+    // 2. Handle the different formats for Indian numbers
+    if (digitsOnly.length === 12 && digitsOnly.startsWith('91')) {
+        // Already in the correct format (e.g., 919876543210)
+        return digitsOnly;
+    } else if (digitsOnly.length === 10) {
+        // Standard 10-digit mobile number, prepend the country code
+        return '91' + digitsOnly;
+    }
+
+    // If it doesn't match a known valid length, it's an invalid number
+    return null;
+}
 
 // POST: Worker VPS uses this to update a contact's status after sending
 router.post('/update-status', async (req, res) => {
