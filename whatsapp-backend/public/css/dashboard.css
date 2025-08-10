@@ -13,6 +13,19 @@
     padding-top: 1rem; /* Adjust if you have a fixed top mobile navbar */
 }
 
+
+/* Quick Action Cards */
+.quick-action-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    color: #495057;
+}
+
+.quick-action-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+    color: #0d6efd;
+}
+
 /* Chart container to manage responsive height */
 .chart-container {
     position: relative;

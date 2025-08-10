@@ -1,116 +1,101 @@
 // dashboard.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Common chart options, translated from your React component
-    const chartOptions = {
-        maintainAspectRatio: false,
-        responsive: true,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: {
-                    boxWidth: 12,
-                    padding: 15,
-                },
+    // --- CHART INSTANCES ---
+    let messageActivityChart = null;
+    let responseRateChart = null;
+
+    // --- DOM REFERENCES ---
+    const totalMessagesEl = document.getElementById('total-messages');
+    const activeChatsEl = document.getElementById('active-chats');
+    const responseRateEl = document.getElementById('response-rate');
+
+    // --- RENDER FUNCTIONS ---
+    const updateStatCards = (data) => {
+        totalMessagesEl.textContent = data.total_messages_sent.toLocaleString() || '0';
+        activeChatsEl.textContent = data.active_chats_24h.toLocaleString() || '0';
+        responseRateEl.textContent = `${parseFloat(data.response_rate_all_time || 0).toFixed(1)}%`;
+    };
+
+    const renderMessageActivityChart = (activityData) => {
+        const ctx = document.getElementById('messageActivityChart').getContext('2d');
+        
+        // Prepare labels and data for the last 7 days
+        const labels = [];
+        const dataPoints = [];
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            const formattedDate = date.toISOString().split('T')[0];
+            labels.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
+            
+            const activityForDay = activityData.find(d => d.date === formattedDate);
+            dataPoints.push(activityForDay ? activityForDay.count : 0);
+        }
+
+        if (messageActivityChart) messageActivityChart.destroy();
+        messageActivityChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Messages Sent',
+                    data: dataPoints,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.2,
+                    fill: false,
+                }],
             },
-        },
-        scales: {
-            y: {
-                beginAtZero: true
+            options: { maintainAspectRatio: false, responsive: true }
+        });
+    };
+
+    const renderResponseRateChart = (rateData) => {
+        const ctx = document.getElementById('responseRateChart').getContext('2d');
+        
+        const labels = rateData.map(d => `Week ${d.week.toString().slice(-2)}`);
+        const dataPoints = rateData.map(d => parseFloat(d.responsePercentage).toFixed(1));
+
+        if (responseRateChart) responseRateChart.destroy();
+        responseRateChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Response Rate (%)',
+                    data: dataPoints,
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                }],
+            },
+            options: {
+                maintainAspectRatio: false,
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 100 } }
             }
+        });
+    };
+
+    // --- API & DATA HANDLING ---
+    const fetchDashboardData = async () => {
+        try {
+            const response = await fetch('/api/data/dashboard-analytics');
+            if (!response.ok) throw new Error('Failed to fetch analytics');
+            const data = await response.json();
+
+            updateStatCards(data);
+            renderMessageActivityChart(data.weekly_message_activity || []);
+            renderResponseRateChart(data.weekly_response_rate || []);
+
+        } catch (error) {
+            console.error('Error loading dashboard:', error);
+            // You could show an error message on the dashboard here
         }
     };
 
-    // 1. Message Activity Chart (Line)
-    const messageData = {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        datasets: [{
-            label: 'Messages Sent',
-            data: [65, 59, 80, 81, 56, 55, 40],
-            borderColor: 'rgb(75, 192, 192)',
-            tension: 0.2,
-            fill: false,
-        }],
-    };
-
-    const messageCtx = document.getElementById('messageActivityChart').getContext('2d');
-    new Chart(messageCtx, {
-        type: 'line',
-        data: messageData,
-        options: chartOptions,
-    });
-
-
-    // 2. Response Time Chart (Doughnut)
-    const responseData = {
-        labels: ['Immediate', 'Within 5min', 'Within 1hr', 'Later'],
-        datasets: [{
-            data: [300, 150, 100, 50],
-            backgroundColor: [
-                'rgba(75, 192, 192, 0.8)',
-                'rgba(54, 162, 235, 0.8)',
-                'rgba(255, 206, 86, 0.8)',
-                'rgba(255, 99, 132, 0.8)',
-            ],
-        }],
-    };
-
-    const responseCtx = document.getElementById('responseTimeChart').getContext('2d');
-    new Chart(responseCtx, {
-        type: 'doughnut',
-        data: responseData,
-        options: { // Doughnut charts might have slightly different default options
-             maintainAspectRatio: false,
-             responsive: true,
-             plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        boxWidth: 12,
-                        padding: 15,
-                    },
-                },
-            },
-        }
-    });
-
-
-    // 3. Conversion Rate Chart (Bar)
-    const conversionData = {
-        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-        datasets: [{
-            label: 'Conversion Rate',
-            data: [30, 45, 55, 60],
-            backgroundColor: 'rgba(54, 162, 235, 0.5)',
-            borderColor: 'rgba(54, 162, 235, 1)',
-            borderWidth: 1,
-        }],
-    };
-
-    const conversionCtx = document.getElementById('conversionRateChart').getContext('2d');
-    new Chart(conversionCtx, {
-        type: 'bar',
-        data: conversionData,
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        drawBorder: false
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    }
-                }
-            }
-        }
-    });
+    // --- INITIALIZATION ---
+    fetchDashboardData();
 });

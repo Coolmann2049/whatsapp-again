@@ -332,6 +332,33 @@ router.delete('/templates/:id', async (req, res) => {
     }
 });
 
+// DASHBOARD ANALYTICS 
+
+router.get('/dashboard-analytics', async (req, res) => {
+    try {
+        const userId = req.session.userId;
+
+        // Find the single analytics record for the logged-in user
+        const analytics = await UserAnalytics.findByPk(userId);
+
+        if (!analytics) {
+            // If no record exists yet, return a default empty state
+            return res.json({
+                total_messages_sent: 0,
+                active_chats_24h: 0,
+                response_rate_all_time: 0,
+                weekly_message_activity: [],
+                weekly_response_rate: []
+            });
+        }
+
+        res.json(analytics);
+
+    } catch (error) {
+        console.error('Error fetching dashboard analytics:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 // --- Welcome Message Endpoints ---
 
