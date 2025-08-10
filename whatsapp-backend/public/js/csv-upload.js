@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 target.disabled = true;
 
                 // 1. Make the API call to the backend
-                const response = await fetch(`/api/data/upload-history/${fileId}`, {
+                const response = await fetch(`/api/csv/upload-history/${fileId}`, {
                     method: 'DELETE'
                 });
 
