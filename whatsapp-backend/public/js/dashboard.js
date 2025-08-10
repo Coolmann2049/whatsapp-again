@@ -86,13 +86,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Failed to fetch analytics');
             const data = await response.json();
 
+            // --- THE FIX IS HERE ---
+            // Ensure the chart data is parsed from a string if necessary
+            const messageActivity = typeof data.weekly_message_activity === 'string' 
+                ? JSON.parse(data.weekly_message_activity) 
+                : (data.weekly_message_activity || []);
+            
+            const responseRate = typeof data.weekly_response_rate === 'string'
+                ? JSON.parse(data.weekly_response_rate)
+                : (data.weekly_response_rate || []);
+            // --- END OF FIX ---
+
             updateStatCards(data);
-            renderMessageActivityChart(data.weekly_message_activity || []);
-            renderResponseRateChart(data.weekly_response_rate || []);
+            renderMessageActivityChart(messageActivity);
+            renderResponseRateChart(responseRate);
 
         } catch (error) {
             console.error('Error loading dashboard:', error);
-            // You could show an error message on the dashboard here
         }
     };
 
