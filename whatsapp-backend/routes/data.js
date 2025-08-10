@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const dotenv = require('dotenv');
-const { Campaign, Contact, MessageTemplate, DialogFlows , WelcomeMessage, AiConfiguration, UserID, UploadHistory, CampaignContacts} = require('../models'); // Adjust the path as needed
+const { Campaign, Contact, MessageTemplate, DialogFlows , UserAnalytics, AiConfiguration, UserID, UploadHistory, CampaignContacts} = require('../models'); // Adjust the path as needed
 const { generateAiResponse } = require('./services/aiServices');
 
 
