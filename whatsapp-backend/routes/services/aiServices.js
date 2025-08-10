@@ -77,7 +77,6 @@ async function generateAiResponse(aiConfig, chatHistory, newMessage) {
         }
 
         const result = await response.json();
-        console.log(result);
         // --- Step 3: Extract and return the generated text ---
         if (result.choices && result.choices.length > 0) {
             return result.choices[0].message.content;
