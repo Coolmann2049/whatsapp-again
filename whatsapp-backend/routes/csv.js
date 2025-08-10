@@ -75,6 +75,34 @@ router.get('/upload-history', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+router.delete('/upload-history/:id', async (req, res) => {
+    try {
+        const historyId = req.params.id;
+        const userId = req.session.userId;
+
+        // The only query we need to run. The database handles the rest.
+        const result = await UploadHistory.destroy({
+            where: {
+                id: historyId,
+                userId: userId // Ensures users can only delete their own files
+            }
+        });
+
+        if (result === 0) {
+            return res.status(404).json({ error: 'Upload record not found or you do not have permission to delete it.' });
+        }
+
+        // 204 No Content is the standard, correct response for a successful delete.
+        res.status(204).send();
+
+    } catch (error) {
+        console.error('Error deleting upload history:', error);
+        res.status(500).json({ error: 'Failed to delete upload history and associated contacts.' });
+    }
+});
+
+
 router.post('/upload-contacts', upload.single('csvFile'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });

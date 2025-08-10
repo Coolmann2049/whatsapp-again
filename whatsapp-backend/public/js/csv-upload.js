@@ -113,21 +113,47 @@ document.addEventListener('DOMContentLoaded', () => {
         uploadFile(uploadedFile);
     };
 
-    const handleTableActions = (e) => {
-        const target = e.target.closest('button');
-        if (!target) return;
-        
-        const fileId = parseInt(target.dataset.id);
+    const handleTableActions = async (e) => {
+    const target = e.target.closest('button');
+    if (!target) return;
+    
+    const fileId = parseInt(target.dataset.id);
 
-        if (target.classList.contains('btn-delete')) {
-            if (confirm('Are you sure you want to delete this upload record and all its associated contacts?')) {
-                // TODO: Add an API call to delete this from the server
-                // fetch(`/api/upload-history/${fileId}`, { method: 'DELETE' }).then(...)
+    if (target.classList.contains('btn-delete')) {
+        // Find the file name to use in the confirmation message
+        const fileToDelete = files.find(f => f.id === fileId);
+        const fileName = fileToDelete ? fileToDelete.file_name : 'this file';
+
+        if (confirm(`Are you sure you want to delete "${fileName}" and all its associated contacts? This action cannot be undone.`)) {
+            try {
+                // Disable the button to prevent multiple clicks
+                target.disabled = true;
+
+                // 1. Make the API call to the backend
+                const response = await fetch(`/api/data/upload-history/${fileId}`, {
+                    method: 'DELETE'
+                });
+
+                // 2. Check if the server responded with an error
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Server error');
+                }
+
+                // 3. Only if the API call is successful, update the frontend
                 files = files.filter(f => f.id !== fileId);
                 renderFiles();
+                alert('Upload record and associated contacts deleted successfully!');
+
+            } catch (error) {
+                console.error('Failed to delete upload record:', error);
+                alert(`Error: ${error.message}`);
+                // Re-enable the button if the action failed
+                target.disabled = false;
             }
         }
-    };
+    }
+};
     
     // --- DRAG & DROP ---
     dropZone.addEventListener('dragover', (e) => {

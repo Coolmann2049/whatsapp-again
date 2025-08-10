@@ -212,7 +212,6 @@ router.get('/devices', authMiddleware, async (req, res) => {
         const user = await UserID.findByPk(userId);
         
         const devices = JSON.parse(user.devices_data);
-        console.log(devices);
         res.status(200).json({
             devices
         });

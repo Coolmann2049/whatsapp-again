@@ -239,14 +239,12 @@ router.get('/campaign-creation-data', async (req, res) => {
             deviceNameMap.set(String(device.id), device.name); // Ensure IDs are strings for matching
         });
 
-        console.log(deviceNameMap);
         // Step 3: Manually attach the device name to each campaign
         const campaignsWithDeviceNames = campaigns.map(campaign => {
             const campaignJSON = campaign.toJSON(); // Get a plain object
             const deviceId = campaignJSON.client_id.split('_')[2];
 
             const deviceName = deviceNameMap.get(String(deviceId));
-            console.log(deviceName);
             return {
                 ...campaignJSON,
                 device: { // Add a 'device' object to match the frontend's expectation
