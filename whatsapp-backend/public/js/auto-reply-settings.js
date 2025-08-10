@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- STATE ---
     let dialogFlows = [];
+    let initialReplyMode = 'off';
 
     // --- DOM REFERENCES ---
     const masterSwitch = document.getElementById('master-autoreply-switch');
@@ -10,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiModeView = document.getElementById('ai-mode-view');
     const menuModeView = document.getElementById('menu-mode-view');
     const dialogFlowList = document.getElementById('dialog-flow-list');
+    const saveSettingsBtn = document.getElementById('save-settings-btn');
+    const saveAlert = document.getElementById('save-alert');
     
     // Modal elements
     const createFlowModalEl = document.getElementById('createFlowModal');
@@ -40,7 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 tree.push(flowsById[flow.id]);
             }
-            // Populate parent dropdown
             const option = new Option(flow.trigger_message.substring(0, 30), flow.id);
             parentSelect.add(option);
         });
@@ -70,15 +72,53 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- API FUNCTIONS ---
-    const fetchDialogFlows = async () => {
+    const fetchInitialData = async () => {
         try {
             const response = await fetch('/api/data/dialog-flows');
-            if (!response.ok) throw new Error('Failed to fetch dialog flows');
-            dialogFlows = await response.json();
+            if (!response.ok) throw new Error('Failed to fetch initial data');
+            const data = await response.json();
+            
+            dialogFlows = data.flows || [];
+            initialReplyMode = data.reply_mode || 'off';
+
+            masterSwitch.checked = initialReplyMode !== 'off';
+            modeToggle.checked = initialReplyMode === 'ai';
+
             renderDialogFlows();
+            updateViewState();
         } catch (error) {
             console.error(error);
-            dialogFlowList.innerHTML = '<p class="text-center text-danger p-3">Could not load dialog flows.</p>';
+            alert('Could not load settings. Please refresh the page.');
+        }
+    };
+
+    const saveReplyMode = async () => {
+        let newMode = 'off';
+        if (masterSwitch.checked) {
+            newMode = modeToggle.checked ? 'ai' : 'keyword';
+        }
+
+        saveSettingsBtn.disabled = true;
+        saveSettingsBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+
+        try {
+            const response = await fetch('/api/data/reply-mode', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reply_mode: newMode })
+            });
+
+            if (!response.ok) throw new Error('Failed to save settings');
+
+            initialReplyMode = newMode;
+            saveAlert.classList.remove('d-none');
+            setTimeout(() => saveAlert.classList.add('d-none'), 3000);
+
+        } catch (error) {
+            console.error(error);
+            alert('Error: Could not save settings.');
+        } finally {
+            saveSettingsBtn.innerHTML = '<i class="bi bi-save me-2"></i>Save Changes';
         }
     };
 
@@ -105,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error('Failed to save flow');
             
             createFlowModal.hide();
-            await fetchDialogFlows(); // Refresh the list
+            await fetchInitialData(); // Refresh all data
         } catch (error) {
             console.error(error);
             alert('Error: Could not save the dialog flow.');
@@ -119,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(`/api/data/dialog-flows/${id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error('Failed to delete flow');
             
-            await fetchDialogFlows(); // Refresh the list
+            await fetchInitialData(); // Refresh all data
         } catch (error) {
             console.error(error);
             alert('Error: Could not delete the dialog flow.');
@@ -133,17 +173,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isMasterOn) {
             const isAiMode = modeToggle.checked;
-            modeLabel.textContent = isAiMode ? 'AI-Powered Replies' : 'Menu-Driven Replies';
+            modeLabel.textContent = isAiMode ? 'AI-Powered Replies' : 'Keyword-Based Replies';
             aiModeView.classList.toggle('d-none', !isAiMode);
             menuModeView.classList.toggle('d-none', isAiMode);
         }
+        
+        let currentMode = 'off';
+        if (masterSwitch.checked) {
+            currentMode = modeToggle.checked ? 'ai' : 'keyword';
+        }
+        saveSettingsBtn.disabled = (currentMode === initialReplyMode);
     };
 
     // --- ATTACH EVENT LISTENERS ---
     masterSwitch.addEventListener('change', updateViewState);
     modeToggle.addEventListener('change', updateViewState);
+    saveSettingsBtn.addEventListener('click', saveReplyMode);
     saveFlowBtn.addEventListener('click', saveDialogFlow);
 
+    // THIS IS THE CORRECTED PART
     dialogFlowList.addEventListener('click', (e) => {
         const deleteBtn = e.target.closest('.btn-delete-flow');
         if (deleteBtn) {
@@ -152,19 +200,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     createFlowModalEl.addEventListener('hidden.bs.modal', () => {
-        dialogFlowForm.reset(); // Clear form when modal is closed
+        dialogFlowForm.reset();
     });
 
     // --- INITIALIZATION ---
-    const init = async () => {
-        // TODO: In a real app, fetch the initial state of the toggles from the server
-        // For now, we'll set a default state
-        masterSwitch.checked = true;
-        modeToggle.checked = true; // Default to AI mode
-
-        await fetchDialogFlows();
-        updateViewState();
-    };
-
-    init();
+    fetchInitialData();
 });

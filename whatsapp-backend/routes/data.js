@@ -419,10 +419,44 @@ router.get('/dialog-flows', async (req, res) => {
             where: { userId },
             order: [['created_at', 'ASC']]
         });
-        res.json(flows);
+
+        const user = await UserID.findByPk(userId);
+        const reply_mode = user.reply_mode;
+
+        res.json({
+            flows,
+            reply_mode,
+
+        });
     } catch (error) {
         console.error('Error fetching dialog flows:', error);
         res.status(500).json({ error: 'Failed to fetch dialog flows' });
+    }
+});
+
+router.put('/reply-mode', async (req, res) => {
+    try {
+        const { reply_mode } = req.body;
+        const userId = req.session.userId;
+
+        // Validate the incoming data
+        if (!['ai', 'keyword', 'off'].includes(reply_mode)) {
+            return res.status(400).json({ error: 'Invalid reply mode specified.' });
+        }
+
+        const user = await UserID.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // Update the user's reply mode
+        await user.update({ reply_mode });
+
+        res.json({ success: true, message: 'Reply mode updated successfully.' });
+
+    } catch (error) {
+        console.error('Error updating reply mode:', error);
+        res.status(500).json({ error: 'Failed to update reply mode.' });
     }
 });
 

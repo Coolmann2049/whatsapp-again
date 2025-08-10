@@ -311,7 +311,6 @@ router.post('/process-incoming-message', async (req, res) => {
     try {
         // --- Step 1: Identify the User and Contact ---
         const userId = clientId.split('_')[0];
-        const deviceId = clientId.split('_')[2];
         
         const [user, contact] = await Promise.all([
             UserID.findByPk(userId),
