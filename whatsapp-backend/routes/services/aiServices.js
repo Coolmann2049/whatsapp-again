@@ -9,6 +9,7 @@
  * @returns {Promise<string>} - The generated AI response.
  */
 async function generateAiResponse(aiConfig, chatHistory, newMessage) {
+    console.log('generate-ai-function');
     const apiKey = process.env.DEEPSEEK_API_KEY;
 
     if (!apiKey) {
@@ -55,6 +56,7 @@ async function generateAiResponse(aiConfig, chatHistory, newMessage) {
     ];
 
     try {
+        console.log('sending to deepseek api');
         // --- Step 2: Make the API call to the DeepSeek API ---
         const response = await fetch('https://api.deepseek.com/chat/completions', {
             method: 'POST',
@@ -75,7 +77,7 @@ async function generateAiResponse(aiConfig, chatHistory, newMessage) {
         }
 
         const result = await response.json();
-
+        console.log(result);
         // --- Step 3: Extract and return the generated text ---
         if (result.choices && result.choices.length > 0) {
             return result.choices[0].message.content;

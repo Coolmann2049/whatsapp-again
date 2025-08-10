@@ -299,6 +299,7 @@ router.post('/running-campaigns', async (req, res) => {
  * It decides whether to attribute a reply to a campaign, use the AI, or use the keyword bot.
  */
 router.post('/process-incoming-message', async (req, res) => {
+    console.log('e');
     const { clientId, contactNumber, messageBody, auth} = req.body;
     
     if (auth != process.env.VPS_KEY) {
@@ -330,6 +331,7 @@ router.post('/process-incoming-message', async (req, res) => {
             message_content: messageBody
         });
 
+        console.log('created chat message');
         // --- Step 3: Check for an Active Campaign Reply ---
         const campaignContact = await CampaignContacts.findOne({
             where: { contact_id: contact.id, status: 'sent' },
@@ -353,6 +355,7 @@ router.post('/process-incoming-message', async (req, res) => {
         let botReply = null;
 
         if (user.reply_mode === 'ai') {
+            console.log('ai mode');
             const aiConfig = await AiConfiguration.findByPk(userId);
             const chatHistory = []; // We would fetch this in a real scenario
             botReply = await generateAiResponse(aiConfig, chatHistory, messageBody);
@@ -366,7 +369,7 @@ router.post('/process-incoming-message', async (req, res) => {
                 }
             }
         }
-
+        console.log(botReply);
         // --- Step 5: Send the Reply (if one was determined) ---
         if (botReply) {
             await ChatMessage.create({
@@ -380,9 +383,8 @@ router.post('/process-incoming-message', async (req, res) => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-vps-auth-key': process.env.VPS_KEY
                 },
-                body: JSON.stringify({ clientId, number: contactNumber, message: botReply })
+                body: JSON.stringify({ clientId, number: contactNumber, message: botReply, auth: process.env.VPS_KEY })
             });
         } else {
             console.log(`No reply action found for message from ${contactNumber}.`);
