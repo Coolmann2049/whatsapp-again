@@ -340,19 +340,20 @@ router.post('/process-incoming-message', async (req, res) => {
         });
 
         if (campaignContact) {
-            console.log(campaignContact.is_manual_mode);
-            console.log(typeof(campaignContact.is_manual_mode));
-            if (campaignContact.is_manual_mode === 1) {
-                console.log(`Auto-reply is turned off for this contact. No reply will be sent.`);
-                return; // Stop processing
-            }
+            ;
             
+
             await campaignContact.update({ status: 'replied', replied_at: new Date() });
             console.log(`Attributed reply from ${contactNumber} to campaign ID ${campaignContact.campaign_id}`);
         }
 
         // --- Step 4: Decide on the Reply Strategy (AI vs. Keyword vs. Off) ---
-        
+        if (contact.is_manual_mode === 1) {
+            console.log(contact.is_manual_mode);
+            console.log(typeof(contact.is_manual_mode))
+            console.log(`Auto-reply is turned off for this contact. No reply will be sent.`);
+            return; // Stop processing
+            }
         // NEW: Check if auto-replies are turned off completely.
         if (user.reply_mode === 'off') {
             console.log(`Auto-reply is turned off for user ${userId}. No reply will be sent.`);
