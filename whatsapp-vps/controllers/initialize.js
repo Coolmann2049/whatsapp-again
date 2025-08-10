@@ -246,14 +246,15 @@ async function processCampaign(campaignId, clientId) {
                 break; // Exit the while loop
             }
 
-            const { campaignContactId, contact, templateContent } = nextTask;
+            const { campaignContactId, contact, templateContent, phone } = nextTask;
+
 
             // 3. Prepare and send the message
             let messageContent = templateContent
                 .replace(/{{name}}/g, contact.name || '')
                 .replace(/{{company}}/g, contact.company || '');
             
-            const chatId = `${contact.phone}@c.us`;
+            const chatId = `${phone}@c.us`;
             await client.sendMessage(chatId, messageContent);
 
             // 4. Update the status to 'sent'
@@ -262,7 +263,7 @@ async function processCampaign(campaignId, clientId) {
                 status: 'sent',
                 auth: process.env.VPS_KEY
             });
-            console.log(`[${clientId}] Successfully sent message to ${contact.phone} for campaign ${campaignId}.`);
+            console.log(`[${clientId}] Successfully sent message to ${phone} for campaign ${campaignId}.`);
 
         } catch (error) {
             console.error(`[${clientId}] Error during campaign ${campaignId} loop:`, error.message);

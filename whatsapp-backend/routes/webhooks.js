@@ -195,12 +195,14 @@ router.get('/next-contact/:campaignId', async (req, res) => {
             await campaign.update({ status: 'Completed' });
             return res.json(null); // Signal to the worker that the campaign is done
         }
-        const sanitizedPhone = sanitizePhoneNumber(campaignContact.Contact);
+            const sanitizedPhone = sanitizePhoneNumber(campaignContact.Contact.phone);
+
 
         // Send back all necessary data for the worker
         res.json({
             campaignContactId: campaignContact.id,
-            contact: sanitizedPhone,
+            contact: campaignContact.Contact,
+            phone: sanitizedPhone,
             templateContent: campaign.template.content
         });
     } catch (error) {
@@ -208,6 +210,7 @@ router.get('/next-contact/:campaignId', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 
 
 function sanitizePhoneNumber(rawPhoneNumber) {
