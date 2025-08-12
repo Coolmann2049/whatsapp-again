@@ -64,6 +64,8 @@ function initializeClient(clientId) {
             const initTimeout = setTimeout(() => {
                 console.error(`[${clientId}] Initialization timed out after 90 seconds.`);
                 client.destroy(); 
+                delete activeClients[clientId]; // <-- FIX: Clean up on timeout
+
                 reject(new Error(`Initialization timed out for ${clientId}`));
             }, 90000);
 

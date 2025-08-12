@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const csv = require('csv-parser');
-const fs = require('fs').promises;
+const fs = require('fs'); // For synchronous methods like existsSync
+const fsPromises = require('fs').promises; // For async/await methods like unlink
 const path = require('path');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
@@ -184,7 +185,7 @@ router.post('/upload-contacts', upload.single('csvFile'), async (req, res) => {
         }
         res.status(500).json({ error: 'Failed to process file' });
     } finally {
-        await fs.unlink(filePath);
+        await fsPromises.unlink(filePath);
     }
 });
 

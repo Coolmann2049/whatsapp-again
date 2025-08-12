@@ -1,7 +1,7 @@
 /* ai-config.css */
 
 :root {
-    --sidebar-width: 250px; /* Adjust if your sidebar width is different */
+    --sidebar-width: 250px;
 }
 
 /* --- Main Layout --- */
@@ -9,15 +9,22 @@
     background-color: #f4f6f8;
     min-height: 100vh;
 }
-
-/* Use container-fluid for a wider layout to accommodate two columns */
 .content-wrapper {
-    max-width: 1600px; /* Allow content to be wider */
+    max-width: 1600px;
 }
 
-/* --- Required Field Asterisk --- */
-.form-label .text-danger {
-    font-weight: bold;
+/* --- AI Personality Sliders --- */
+.slider-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.slider-value {
+    font-weight: 500;
+    background-color: #e9ecef;
+    padding: 0.15rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.8rem;
 }
 
 /* --- FAQ Section --- */
@@ -28,7 +35,6 @@
     border-radius: 0.375rem;
     padding: 0.5rem;
 }
-
 .faq-item {
     display: flex;
     justify-content: space-between;
@@ -36,9 +42,7 @@
     padding: 0.5rem 0.75rem;
     border-bottom: 1px solid #eee;
 }
-.faq-item:last-child {
-    border-bottom: none;
-}
+.faq-item:last-child { border-bottom: none; }
 .faq-question {
     margin-bottom: 0;
     font-size: 0.9rem;
@@ -51,44 +55,36 @@
     --bs-btn-font-size: .9rem;
 }
 
-
 /* --- AI Chat Test Panel --- */
 .chat-panel-container {
-    /* The 'sticky-top' class in the HTML handles the positioning */
-    top: 1.5rem; /* Add some space from the top */
+    top: 1.5rem;
 }
-
 .chat-messages {
-    height: 60vh; /* Set a fixed height for the chat window */
+    height: 60vh;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
     padding: 1rem;
 }
-
 .chat-bubble {
     padding: 0.5rem 1rem;
     border-radius: 1rem;
     max-width: 80%;
     word-wrap: break-word;
 }
-
 .user-message {
     background-color: #0d6efd;
     color: white;
     align-self: flex-end;
     border-bottom-right-radius: 0.25rem;
 }
-
 .ai-message {
     background-color: #e9ecef;
     color: #212529;
     align-self: flex-start;
     border-bottom-left-radius: 0.25rem;
 }
-
-/* Typing Indicator Animation */
 .typing-indicator {
     display: flex;
     align-items: center;
@@ -109,25 +105,21 @@
     40% { transform: scale(1.0); }
 }
 
-
 /* --- Responsive Adjustments --- */
 @media (min-width: 576px) {
     .main-content {
         margin-left: var(--sidebar-width);
     }
 }
-
 @media (max-width: 991.98px) {
-    /* On medium screens and below, stack the columns */
     .chat-panel-container {
-        position: static; /* Remove stickiness on mobile */
+        position: static;
         margin-top: 1.5rem;
     }
     .chat-messages {
-        height: 400px; /* Adjust height for mobile view */
+        height: 400px;
     }
 }
-
 @media (max-width: 575.98px) {
     .main-content {
         margin-left: 0;

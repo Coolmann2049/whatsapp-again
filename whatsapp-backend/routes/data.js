@@ -566,5 +566,110 @@ router.post('/ai/test-chat', async (req, res) => {
     }
 });
 
+// CSV manual data endpoints: 
+router.post('/contacts/manual', authMiddleware, async (req, res) => {
+    try {
+        const { name, phone, company } = req.body;
+        const userId = req.session.userId;
+
+        // Validate that the phone number is present
+        if (!phone) {
+            return res.status(400).json({ error: 'Phone number is required.' });
+        }
+
+        // Sanitize the phone number
+        const sanitizedPhone = sanitizePhoneNumber(phone);
+        if (!sanitizedPhone) {
+            return res.status(400).json({ error: 'Invalid phone number format provided.' });
+        }
+
+        // Step 1: Find or create the special "Manually Added" history record
+        const [manualHistoryRecord] = await UploadHistory.findOrCreate({
+            where: {
+                userId: userId,
+                file_name: 'Manually Added Contacts'
+            },
+            defaults: {
+                userId: userId,
+                file_name: 'Manually Added Contacts',
+                status: 'Completed',
+                total_contacts: 0 // We'll increment this manually
+            }
+        });
+
+        // Step 2: Create the new contact, linking it to the manual history record
+        const newContact = await Contact.create({
+            name: name || '',
+            phone: sanitizedPhone,
+            company: company || '',
+            userId: userId,
+            uploadHistoryId: manualHistoryRecord.id
+        });
+
+        // Step 3: Increment the total contacts count on the history record
+        await manualHistoryRecord.increment('total_contacts');
+
+        res.status(201).json(newContact);
+
+    } catch (error) {
+        // Handle potential unique constraint violation (duplicate phone number)
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            return res.status(409).json({ error: 'A contact with this phone number already exists.' });
+        }
+        console.error('Error adding manual contact:', error);
+        res.status(500).json({ error: 'Failed to add contact.' });
+    }
+});
+
+// DELETE: Delete a single contact
+
+router.delete('/contacts/:id', async (req, res) => {
+    try {
+        const contactId = req.params.id;
+        const userId = req.session.userId;
+
+        const contact = await Contact.findOne({
+            where: { id: contactId, userId }
+        });
+
+        if (!contact) {
+            return res.status(404).json({ error: 'Contact not found.' });
+        }
+
+        // Decrement the count on the associated upload history record before deleting
+        await UploadHistory.decrement('total_contacts', {
+            where: { id: contact.uploadHistoryId }
+        });
+
+        // Delete the contact
+        await contact.destroy();
+
+        res.status(204).send(); // Success, no content
+
+    } catch (error) {
+        console.error('Error deleting contact:', error);
+        res.status(500).json({ error: 'Failed to delete contact.' });
+    }
+});
+
+
+function sanitizePhoneNumber(rawPhoneNumber) {
+    if (!rawPhoneNumber || typeof rawPhoneNumber !== 'string') {
+        return null;
+    }
+    // Remove all non-digit characters
+    const digitsOnly = rawPhoneNumber.replace(/\D/g, '');
+
+    if (digitsOnly.length === 12 && digitsOnly.startsWith('91')) {
+        // Already in correct format (e.g., 919876543210)
+        return digitsOnly;
+    } else if (digitsOnly.length === 10) {
+        // Standard 10-digit mobile number, prepend country code
+        return '91' + digitsOnly;
+    }
+    // Invalid length
+    return null;
+}
+
 module.exports = router;
 
