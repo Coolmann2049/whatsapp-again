@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
             upload_date: new Date().toISOString(),
         };
         files.unshift(newFileEntry);
-        renderFiles();
+        renderUploadHistory();
 
         const formData = new FormData();
         formData.append('csvFile', fileToUpload);
@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 errorFileEntry.total_contacts = 0;
             }
             alert(`Error: ${error.message}`);
-            renderFiles();
+            renderUploadHistory();
         }
     };
     
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const data = await response.json();
             files = data;
-            renderFiles();
+            renderUploadHistory();
         } catch (error) {
             console.error(error);
             fileListBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Error loading history.</td></tr>`;
@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // 3. Only if the API call is successful, update the frontend
                     files = files.filter(f => f.id !== fileId);
-                    renderFiles();
+                    renderUploadHistory();
                     alert('Upload record and associated contacts deleted successfully!');
 
                 } catch (error) {
