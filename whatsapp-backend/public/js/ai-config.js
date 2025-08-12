@@ -38,12 +38,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- RENDER FUNCTIONS ---
     function renderFAQs() {
-        // ... (this function remains the same) ...
+        faqListContainer.innerHTML = '';
+        if (faqs.length === 0) {
+            faqListContainer.innerHTML = '<p class="text-muted small text-center">No FAQs added yet.</p>';
+            return;
+        }
+        faqs.forEach((faq, index) => {
+            const faqItem = `
+                <div class="faq-item">
+                    <p class="faq-question">${faq.question}</p>
+                    <button class="btn btn-sm btn-outline-danger btn-delete-faq" data-index="${index}">&times;</button>
+                </div>
+            `;
+            faqListContainer.insertAdjacentHTML('beforeend', faqItem);
+        });
     }
 
     function addChatMessage(message, sender) {
-        // ... (this function remains the same) ...
+        // Sanitize message to prevent XSS before inserting as HTML
+        const sanitizedMessage = message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const messageClass = sender === 'user' ? 'user-message' : 'ai-message';
+        let messageHtml;
+        if (sender === 'ai') {
+            messageHtml = `<div class="chat-bubble ${messageClass}">${message}</div>`;
+        } else {
+            messageHtml = `<div class="chat-bubble ${messageClass}">${sanitizedMessage}</div>`;
+        }
+
+        chatMessagesContainer.insertAdjacentHTML('beforeend', messageHtml);
+        chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
     }
+
 
     const updateSliderValue = (sliderName) => {
         if (sliders[sliderName]) {
@@ -96,20 +121,115 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function saveConfig() {
-        // ... (this function remains the same) ...
+        if (!businessNameInput.value.trim() || !industryInput.value.trim() || !descriptionInput.value.trim()) {
+            alert('Please fill out all required fields (*).');
+            return;
+        }
+
+        const configData = {
+            business_name: businessNameInput.value,
+            industry: industryInput.value,
+            business_description: descriptionInput.value,
+            key_products: keyProductsInput.value,
+            communication_tone: tonePreferenceSelect.value,
+            not_to_do_instructions: notToDoInput.value,
+            knowledgeBase: knowledgeBaseInput.value,
+            personality: {
+                formality: parseInt(formalitySlider.value),
+                friendliness: parseInt(friendlinessSlider.value),
+                creativity: parseInt(creativitySlider.value),
+                detail: parseInt(detailSlider.value),
+            },
+            faq: faqs
+        };
+
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+
+        try {
+            const response = await fetch('/api/data/ai-configuration', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(configData)
+            });
+
+            if (!response.ok) throw new Error('Failed to save configuration');
+            
+            saveAlert.classList.remove('d-none');
+            setTimeout(() => saveAlert.classList.add('d-none'), 3000);
+
+        } catch (error) {
+            console.error('Error saving config:', error);
+            alert('An error occurred while saving. Please try again.');
+        } finally {
+            saveButton.disabled = false;
+            saveButton.innerHTML = '<i class="bi bi-save me-2"></i>Save Configuration';
+        }
     }
 
     // --- EVENT HANDLERS ---
     function handleAddFAQ() {
-        // ... (this function remains the same) ...
+        const question = faqQuestionInput.value.trim();
+        const answer = faqAnswerInput.value.trim();
+        if (question && answer) {
+            faqs.push({ question, answer });
+            renderFAQs();
+            faqQuestionInput.value = '';
+            faqAnswerInput.value = '';
+        } else {
+            alert('Please provide both a question and an answer.');
+        }
     }
 
     function handleDeleteFAQ(e) {
-        // ... (this function remains the same) ...
+        if (e.target.matches('.btn-delete-faq')) {
+            const index = parseInt(e.target.dataset.index);
+            faqs.splice(index, 1);
+            renderFAQs();
+        }
     }
 
     async function handleChatSend() {
-        // ... (this function remains the same) ...
+        const userMessage = chatInput.value.trim();
+        if (!userMessage) return;
+
+        addChatMessage(userMessage, 'user');
+        chatInput.value = '';
+        chatInput.disabled = true;
+        sendChatBtn.disabled = true;
+
+        // Add typing indicator
+        addChatMessage('<div class="typing-indicator"><span></span><span></span><span></span></div>', 'ai');
+
+        try {
+            // --- REAL API CALL ---
+            const response = await fetch('/api/data/ai/test-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: userMessage })
+            });
+
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'The AI failed to respond.');
+            }
+
+            // Display the real AI response
+            addChatMessage(result.reply, 'ai');
+
+        } catch (error) {
+            console.error('Chat test error:', error);
+            addChatMessage(`Error: ${error.message}`, 'ai');
+        } finally {
+            // Remove typing indicator and re-enable input
+            const typingIndicator = chatMessagesContainer.querySelector('.typing-indicator');
+            if (typingIndicator) typingIndicator.parentElement.remove();
+            
+            chatInput.disabled = false;
+            sendChatBtn.disabled = false;
+            chatInput.focus();
+        }
     }
 
     // --- ATTACH EVENT LISTENERS ---
