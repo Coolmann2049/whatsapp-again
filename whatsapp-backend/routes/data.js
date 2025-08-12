@@ -567,7 +567,7 @@ router.post('/ai/test-chat', async (req, res) => {
 });
 
 // CSV manual data endpoints: 
-router.post('/contacts/manual', authMiddleware, async (req, res) => {
+router.post('/contacts/manual', async (req, res) => {
     try {
         const { name, phone, company } = req.body;
         const userId = req.session.userId;
