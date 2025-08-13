@@ -675,7 +675,7 @@ router.get('/contacts/manual', async (req, res) => {
                 userId: userId,
                 uploadHistoryId: manualHistoryRecord.id
             },
-            order: [['createdAt', 'DESC']] // Show the most recently added first
+            order: [['created_at', 'DESC']] // Show the most recently added first
         });
 
         res.json(manualContacts);
