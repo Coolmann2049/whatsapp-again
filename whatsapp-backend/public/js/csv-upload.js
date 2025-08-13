@@ -1,5 +1,3 @@
-
-
 document.addEventListener('DOMContentLoaded', () => {
     // --- STATE & DATA ---
     let uploadHistory = [];
@@ -10,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('csv-upload-input');
     
-    // New Manual Entry DOM refs
+    // Manual Entry DOM refs
     const manualContactForm = document.getElementById('manual-contact-form');
     const manualContactsBody = document.getElementById('manual-contacts-body');
     const manualPhoneInput = document.getElementById('manual-phone');
@@ -20,7 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- HELPER FUNCTIONS ---
     const getStatusBadge = (status) => {
         const colors = { completed: 'success', processing: 'warning', failed: 'danger' };
-        return `<span class="badge bg-${colors[(status || '').toLowerCase()] || 'secondary'}">${status}</span>`;
+        const sanitizedStatus = (status || 'unknown').toLowerCase();
+        return `<span class="badge bg-${colors[sanitizedStatus] || 'secondary'}">${status}</span>`;
     };
 
     // --- RENDER FUNCTIONS ---
@@ -69,8 +68,26 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- API & DATA HANDLING ---
+    const fetchInitialData = async () => {
+        try {
+            const [historyRes, manualContactsRes] = await Promise.all([
+                fetch('/api/csv/upload-history'),
+                fetch('/api/data/contacts/manual')
+            ]);
+            if (!historyRes.ok || !manualContactsRes.ok) throw new Error('Failed to fetch initial data.');
+            
+            uploadHistory = await historyRes.json();
+            manualContacts = await manualContactsRes.json();
+            
+            renderUploadHistory();
+            renderManualContacts();
+        } catch (error) {
+            console.error(error);
+            alert('Could not load page data. Please refresh.');
+        }
+    };
+
     const uploadFile = async (fileToUpload) => {
-        // Create a temporary entry for immediate UI feedback
         const tempId = Date.now();
         const newFileEntry = {
             id: tempId,
@@ -79,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
             total_contacts: '...',
             upload_date: new Date().toISOString(),
         };
-        files.unshift(newFileEntry);
+        uploadHistory.unshift(newFileEntry);
         renderUploadHistory();
 
         const formData = new FormData();
@@ -90,42 +107,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 body: formData,
             });
-
             const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error || 'Upload failed');
-            }
+            if (!response.ok) throw new Error(result.error || 'Upload failed');
             
-            // After a successful upload, fetch the entire history again to get the real, updated data
-            fetchUploadHistory();
-
+            await fetchInitialData(); // Refresh all data from server
         } catch (error) {
             console.error('Upload error:', error);
-            // Find the temp entry and mark it as failed
-            const errorFileEntry = files.find(f => f.id === tempId);
+            const errorFileEntry = uploadHistory.find(f => f.id === tempId);
             if (errorFileEntry) {
                 errorFileEntry.status = 'Failed';
                 errorFileEntry.total_contacts = 0;
             }
             alert(`Error: ${error.message}`);
             renderUploadHistory();
-        }
-    };
-    
-    // --- Function to fetch initial data ---
-    const fetchUploadHistory = async () => {
-        try {
-            const response = await fetch('/api/csv/upload-history');
-            if (!response.ok) {
-                throw new Error('Could not fetch upload history.');
-            }
-            const data = await response.json();
-            files = data;
-            renderUploadHistory();
-        } catch (error) {
-            console.error(error);
-            fileListBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">Error loading history.</td></tr>`;
         }
     };
 
@@ -140,6 +134,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const addButton = e.target.querySelector('button[type="submit"]');
+        addButton.disabled = true;
+
         try {
             const response = await fetch('/api/data/contacts/manual', {
                 method: 'POST',
@@ -151,74 +148,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(err.error);
             }
             manualContactForm.reset();
-            await fetchUploadHistory(); // Refresh both lists
+            await fetchInitialData();
         } catch (error) {
             console.error(error);
             alert(`Error: ${error.message}`);
+        } finally {
+            addButton.disabled = false;
         }
     };
 
-    const deleteContact = async (contactId) => {
+    const deleteManualContact = async (contactId) => {
         if (!confirm('Are you sure you want to delete this contact?')) return;
         try {
             const response = await fetch(`/api/data/contacts/${contactId}`, { method: 'DELETE' });
             if (!response.ok) throw new Error('Failed to delete contact');
-            await fetchUploadHistory();
+            await fetchInitialData();
         } catch (error) {
             console.error(error);
             alert('Error deleting contact.');
         }
     };
     
-    const handleFileSelect = (uploadedFile) => {
-            if (!uploadedFile) return;
-            if (!uploadedFile.name.toLowerCase().endsWith('.csv')) {
-                alert('Please upload a valid .csv file.');
-                return;
-            }
-            uploadFile(uploadedFile);
-        };
+    const deleteHistoryRecord = async (historyId) => {
+        const fileToDelete = uploadHistory.find(f => f.id === historyId);
+        const fileName = fileToDelete ? fileToDelete.file_name : 'this file';
 
-    const handleTableActions = async (e) => {
-        const target = e.target.closest('button');
-        if (!target) return;
+        if (!confirm(`Are you sure you want to delete "${fileName}" and all its associated contacts? This action cannot be undone.`)) return;
         
-        const fileId = parseInt(target.dataset.id);
-
-        if (target.classList.contains('btn-delete')) {
-            // Find the file name to use in the confirmation message
-            const fileToDelete = files.find(f => f.id === fileId);
-            const fileName = fileToDelete ? fileToDelete.file_name : 'this file';
-
-            if (confirm(`Are you sure you want to delete "${fileName}" and all its associated contacts? This action cannot be undone.`)) {
-                try {
-                    // Disable the button to prevent multiple clicks
-                    target.disabled = true;
-
-                    // 1. Make the API call to the backend
-                    const response = await fetch(`/api/csv/upload-history/${fileId}`, {
-                        method: 'DELETE'
-                    });
-
-                    // 2. Check if the server responded with an error
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || 'Server error');
-                    }
-
-                    // 3. Only if the API call is successful, update the frontend
-                    files = files.filter(f => f.id !== fileId);
-                    renderUploadHistory();
-                    alert('Upload record and associated contacts deleted successfully!');
-
-                } catch (error) {
-                    console.error('Failed to delete upload record:', error);
-                    alert(`Error: ${error.message}`);
-                    // Re-enable the button if the action failed
-                    target.disabled = false;
-                }
+        try {
+            const response = await fetch(`/api/csv/upload-history/${historyId}`, { method: 'DELETE' });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Server error');
             }
+            await fetchInitialData();
+            alert('Upload record and associated contacts deleted successfully!');
+        } catch (error) {
+            console.error('Failed to delete upload record:', error);
+            alert(`Error: ${error.message}`);
         }
+    };
+
+    // --- EVENT HANDLERS ---
+    const handleFileSelect = (uploadedFile) => {
+        if (!uploadedFile) return;
+        if (!uploadedFile.name.toLowerCase().endsWith('.csv')) {
+            alert('Please upload a valid .csv file.');
+            return;
+        }
+        uploadFile(uploadedFile);
     };
     
     // --- DRAG & DROP ---
@@ -237,14 +215,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- ATTACH EVENT LISTENERS ---
     fileInput.addEventListener('change', (e) => handleFileSelect(e.target.files[0]));
-    fileListBody.addEventListener('click', handleTableActions);
     manualContactForm.addEventListener('submit', addManualContact);
+
+    fileListBody.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.btn-delete-history');
+        if (deleteBtn) {
+            deleteHistoryRecord(parseInt(deleteBtn.dataset.id));
+        }
+    });
+
     manualContactsBody.addEventListener('click', (e) => {
         const deleteBtn = e.target.closest('.btn-delete-contact');
         if (deleteBtn) {
-            deleteContact(deleteBtn.dataset.id);
+            deleteManualContact(parseInt(deleteBtn.dataset.id));
         }
     });
+
     // --- INITIAL FETCH ---
-    fetchUploadHistory();
+    fetchInitialData();
 });

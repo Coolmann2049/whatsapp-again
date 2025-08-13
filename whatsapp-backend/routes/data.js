@@ -652,7 +652,39 @@ router.delete('/contacts/:id', async (req, res) => {
     }
 });
 
+router.get('/contacts/manual', async (req, res) => {
+    try {
+        const userId = req.session.userId;
 
+        // Step 1: Find the specific "Manually Added Contacts" record for this user.
+        const manualHistoryRecord = await UploadHistory.findOne({
+            where: {
+                userId: userId,
+                file_name: 'Manually Added Contacts'
+            }
+        });
+
+        // If no such record exists, it means no manual contacts have been added yet.
+        if (!manualHistoryRecord) {
+            return res.json([]); // Return an empty array
+        }
+
+        // Step 2: Find all contacts that are linked to that specific history record.
+        const manualContacts = await Contact.findAll({
+            where: {
+                userId: userId,
+                uploadHistoryId: manualHistoryRecord.id
+            },
+            order: [['createdAt', 'DESC']] // Show the most recently added first
+        });
+
+        res.json(manualContacts);
+
+    } catch (error) {
+        console.error('Error fetching manual contacts:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 function sanitizePhoneNumber(rawPhoneNumber) {
     if (!rawPhoneNumber || typeof rawPhoneNumber !== 'string') {
         return null;
