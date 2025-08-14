@@ -2,6 +2,8 @@
 
 :root {
     --sidebar-width: 250px;
+    --primary-color: #1976d2; /* Example color, match this to your brand */
+
 }
 
 /* --- Main Layout --- */

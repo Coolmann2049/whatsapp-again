@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { UserID, AiConfiguration,DialogFlows, Campaign, MessageTemplate, CampaignContacts, Contact, ChatMessage } = require('../models');
-const { generateAiResponse } = require('./services/aiServices');
+const { generateAiResponse, sendEmail } = require('./services/aiServices');
 const dotenv = require('dotenv');
 
 // Load environment variablFVes
@@ -18,7 +18,7 @@ router.post('/whatsapp-qr-update', async (req, res) => {
     try {
 
         const userId = clientId.split('_')[0];
-        const email = clientId.split('_')[1];
+        const clientEmail = clientId.split('_')[1];
         const count = clientId.split('_')[2];
 
         // Find the user by clientId
@@ -31,7 +31,7 @@ router.post('/whatsapp-qr-update', async (req, res) => {
         const io = req.io;                    // Access the io instance
 
         //Send to the correct room
-        io.to(email).emit('qr-code-update', { qrCode: qrCode });
+        io.to(clientEmail).emit('qr-code-update', { qrCode: qrCode });
 
         // Update the database that there be a new instance
         res.status(200).json({ message: 'QR code updated successfully' });
@@ -40,6 +40,7 @@ router.post('/whatsapp-qr-update', async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
+
 router.post('/whatsapp-status-update', async (req, res) => {
     const { clientId, status, userName, userPhone, auth } = req.body;
 
@@ -49,19 +50,19 @@ router.post('/whatsapp-status-update', async (req, res) => {
 
     try {
         const userId = clientId.split('_')[0];
-        const email = clientId.split('_')[1];
-        const deviceId = clientId.split('_')[2]; // Use this as the unique ID
+        const clientEmail = clientId.split('_')[1];
+        const deviceId = clientId.split('_')[2];
 
-        const user = await UserID.findOne({ where: { userId } });
+        const user = await UserID.findByPk(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        // Safely parse the existing devices array from the JSON string
-        let devices = user.devices_data ? JSON.parse(user.devices_data) : [];
+        const email = user.email;
 
-        // Find the index of the device if it already exists in the array
+        let devices = user.devices_data ? JSON.parse(user.devices_data) : [];
         const existingDeviceIndex = devices.findIndex(d => d.id === deviceId);
+        let deviceName = userName; // Default to the name from the webhook
 
         if (status === 'connected') {
             const deviceData = {
@@ -70,7 +71,7 @@ router.post('/whatsapp-status-update', async (req, res) => {
                 name: userName,
                 status: 'connected',
                 phone: userPhone,
-                lastActive: new Date().toISOString() // It's good practice to add a timestamp
+                lastActive: new Date().toISOString()
             };
 
             if (existingDeviceIndex > -1) {
@@ -90,18 +91,53 @@ router.post('/whatsapp-status-update', async (req, res) => {
             if (existingDeviceIndex > -1) {
                 console.log(`Device ${deviceId} disconnected. Updating status.`);
                 devices[existingDeviceIndex].status = 'disconnected';
+                deviceName = devices[existingDeviceIndex].name; // Get the stored name for the email
             }
+
+            // --- NEW LOGIC STARTS HERE ---
+
+            // 1. Pause all active campaigns for this device
+            console.log(`Pausing all running campaigns for device ID: ${deviceId}`);
+            const [updatedCampaignsCount] = await Campaign.update(
+                { status: 'Paused' },
+                {
+                    where: {
+                        userId: userId,
+                        client_id: clientId,
+                        status: 'Running'
+                    }
+                }
+            );
+            console.log(`${updatedCampaignsCount} campaigns were paused.`);
+            
+            if (req.body.userLogout) {
+                const updatedDevices = devices.filter(device => device.clientId !== clientId);
+                user.count = updatedDevices.length;
+                user.devices_data = JSON.stringify(updatedDevices);
+                await user.save();
+            }
+            // 2. Send an email notification to the user
+            const subject = 'Alert: Your WhatsApp Device Has Disconnected';
+            const htmlBody = `
+                <p>Hello ${user.name},</p>
+                <p>This is an automated alert to inform you that your WhatsApp device named "<b>${deviceName}</b>" has been disconnected from our platform.</p>
+                <p>All active campaigns running on this device have been automatically paused to prevent any issues.</p>
+                <p>Please log in to your dashboard to reconnect the device and resume your campaigns.</p>
+                <p>Thank you,<br>The Blulink Team</p>
+            `;
+            // We call sendEmail but don't wait for it to finish, to keep the response fast
+            sendEmail(email, subject, htmlBody);
+
+            // --- NEW LOGIC ENDS HERE ---
         }
 
-        // Save the updated array back to the database
+        // Save the updated devices array
         user.devices_data = JSON.stringify(devices);
         await user.save();
         
-        // --- SOCKET.IO UPDATE ---
-        // Send the entire, updated list of devices to the frontend.
-        // This is more robust and simplifies the frontend logic.
+        // Notify the frontend via Socket.IO
         const io = req.io;
-        io.to(email).emit('device-update', { devices });
+        io.to(clientEmail).emit('device-update', { devices });
         
         res.status(200).json({ message: 'Status updated successfully' });
 
@@ -110,12 +146,11 @@ router.post('/whatsapp-status-update', async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 });
-
 // In your webhooksRouter.js
 
 
 
-router.post('/get-all-clients',  async (req, res) => {
+router.post('/get-all-clients', async (req, res) => {
     try {
         console.log('Worker is requesting list of clients to restore...');
 
@@ -140,8 +175,8 @@ router.post('/get-all-clients',  async (req, res) => {
                     const devices = JSON.parse(user.devices_data);
                     // 3. Loop through the devices for that user
                     for (const device of devices) {
-                        // 4. Add the clientId to our master list
-                        if (device.clientId) {
+                        // 4. Add the clientId to our master list ONLY IF it's connected
+                        if (device.clientId && device.status === 'connected') { // <-- THIS IS THE FIX
                             allClientIds.push(device.clientId);
                         }
                     }
@@ -160,7 +195,6 @@ router.post('/get-all-clients',  async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-
 
 // GET: Worker VPS uses this to get the next contact to message
 router.get('/next-contact/:campaignId', async (req, res) => {

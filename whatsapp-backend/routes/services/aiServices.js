@@ -91,4 +91,11 @@ async function generateAiResponse(aiConfig, chatHistory, newMessage) {
     }
 }
 
-module.exports = { generateAiResponse };
+function sendEmail(email, subject, htmlBody) {
+    // Use your email service here (e.g., Nodemailer)
+    // Make sure to handle errors and edge cases
+
+    console.log('Sending a fucking email');
+}
+
+module.exports = { generateAiResponse , sendEmail};

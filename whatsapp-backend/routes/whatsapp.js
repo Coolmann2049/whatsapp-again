@@ -9,50 +9,55 @@ dotenv.config();
 router.delete('/delete-device/:deviceId', async (req, res) => {
     try {
         const { deviceId } = req.params;
+        const { userId, email } = req.session; // Assuming authMiddleware provides this
 
-        const userId = req.session.userId;
-        const email = req.session.email;
         const user = await UserID.findByPk(userId);
-
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
         }
-        
-        if (!deviceId) {
-            return res.status(400).json({ message: 'Client ID is required' });
+
+        const clientId = `${userId}_${email.replace(/[^a-zA-Z0-9_-]/g, '_')}_${deviceId}`;
+
+        try {
+            // --- Call the Worker VPS ---
+            const response = await fetch(`${process.env.VPS_URL}/api/disconnect-session`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clientId: clientId,
+                    auth: process.env.VPS_KEY,
+                }),
+            });
+
+            // --- Handle Worker's Response ---
+            // Treat a 404 (Not Found) from the worker as a success for cleanup.
+            if (!response.ok && response.status !== 404) {
+                const errorText = await response.text();
+                throw new Error(`Worker VPS failed to disconnect: ${errorText}`);
+            }
+
+        } catch (workerError) {
+            // If the worker is down or sends a 500 error, notify the frontend.
+            console.error('Error commanding worker to disconnect:', workerError);
+            return res.status(502).json({ message: 'Could not communicate with the device server. Please try again.' });
         }
 
-        const clientId = `${userId}_${email.replace(/[^a-zA-Z0-9_-]/g, '-')}_${deviceId}`
+        // --- Database Cleanup on Main Backend ---
+        // This runs if the worker call was successful OR returned a 404.
+        let devices = user.devices_data ? JSON.parse(user.devices_data) : [];
+        const updatedDevices = devices.filter(device => device.id !== deviceId);
+        
+        user.devices_data = JSON.stringify(updatedDevices);
+        user.count = updatedDevices.length;
+        await user.save();
 
-        fetch(`${process.env.VPS_URL}/api/disconnect-session`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-                clientId: clientId,
-                auth: process.env.VPS_KEY,
-            }),
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response;
-        })
-        .then(data => {
-            console.log(data); 
-            res.status(200).json('Device deleted successfully')
-        })
-        .catch(error => {
-            console.error('Error disconnecting device:', error);
-        });
+        res.status(200).json({ message: 'Device deleted successfully' });
+
     } catch (error) {
         console.error('Delete device error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 });
-
 router.post('/send-test-message/:deviceId', async (req, res) => {
     const { deviceId } = req.params;
     const { number, message } = req.body;

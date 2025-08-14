@@ -50,6 +50,11 @@ router.get('/profile', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'profile.html'));
 });
 
+// Profile route
+router.get('/create-account', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'create-account.html'));
+});
+
 // Devices route
 router.get('/devices', authMiddleware, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'devices.html'));

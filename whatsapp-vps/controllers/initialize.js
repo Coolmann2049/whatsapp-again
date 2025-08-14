@@ -45,6 +45,10 @@ async function restoreAllSessions() {
     }
 }
 
+// --- THE FIX: STORE INTENTIONAL LOGOUTS ---
+const intentionalLogouts = new Set();
+
+
 function initializeClient(clientId) {
     // This Promise wrapper makes the function "thenable" and provides resolve/reject
     return new Promise((resolve, reject) => {
@@ -99,16 +103,41 @@ function initializeClient(clientId) {
 
             client.on('disconnected', (reason) => {
                 console.log(`[${clientId}] Client was logged out. Reason:`, reason);
-                // Use the safely stored clientInfo instead of relying on the disconnected client object
-                axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
-                    clientId, 
-                    status: 'disconnected',
-                    userName: clientInfo.name, // Use last known name
-                    userPhone: clientInfo.phone, // Use last known phone
-                    auth: process.env.VPS_KEY
-                });
-                delete activeClients[clientId];
+                
+                // --- THE FIX: CHECK THE FLAG ---
+                if (intentionalLogouts.has(clientId)) {
+                    // This was an intentional logout triggered by our API.
+                    console.log(`[${clientId}] Intentional logout confirmed. Not attempting to reconnect.`);
+                    // Clean up the flag
+                    intentionalLogouts.delete(clientId);
+                    // Send the final status update
+                    axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
+                        clientId, 
+                        status: 'disconnected',
+                        auth: process.env.VPS_KEY,
+                        userLogout: true
+                    });
+                    delete activeClients[clientId];
+
+                } else {
+                    // This was an unexpected disconnect. Proceed with self-healing.
+                    console.log(`[${clientId}] Unexpected disconnect. Attempting to reconnect in 1 minute...`);
+                    
+                    axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
+                        clientId, 
+                        status: 'disconnected',
+                        auth: process.env.VPS_KEY
+                    });
+                    delete activeClients[clientId];
+
+                    setTimeout(() => {
+                        console.log(`[${clientId}] Re-initializing after disconnect...`);
+                        initializeClient(clientId);
+                    }, 60000);
+                }
+                // --- END OF FIX ---
             });
+
 
             client.on('message', async (message) => {
                 let contactNumber;
@@ -198,7 +227,7 @@ async function resumeRunningCampaigns() {
                 }
 
                 // Reconstruct the clientId using the data from the Main Backend
-                const clientId = `${campaign.userId}_${campaign.user.email}_${campaign.deviceId}`;
+                const clientId = campaign.client_id;
                 
                 console.log(`Resuming campaign ID: ${campaign.id} for client: ${clientId}`);
                 // Kick off the processing loop for this campaign in the background
@@ -287,5 +316,7 @@ module.exports = {
     sendTestMessage,
     resumeRunningCampaigns,
     processCampaign,
-    activeClients
+    activeClients,
+    intentionalLogouts
+
 }

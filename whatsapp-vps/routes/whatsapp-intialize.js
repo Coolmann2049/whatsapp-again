@@ -2,7 +2,8 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios'); // To send webhooks to the Main Backend
-const { initializeClient, sendTestMessage, activeClients, processCampaign } = require('../controllers/initialize');
+const { initializeClient, sendTestMessage, activeClients, processCampaign, intentionalLogouts  } = require('../controllers/initialize');
+const fs = require('fs').promises;
 
 const dotenv = require('dotenv');
 
@@ -36,37 +37,46 @@ router.post('/initialize-session', (req, res) => {
 
 
 router.post('/disconnect-session', async (req, res) => {
-
     const { clientId } = req.body;
-
     if (!clientId) {
         return res.status(400).send('clientId is required.');
     }
 
     const client = activeClients[clientId];
-    if (client) {
-        console.log(`[${clientId}] Disconnection requested. Logging out...`);
 
-        const userName = client.info.pushname;
-        const userPhone = client.info.wid.user;
-        
-        axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
-            clientId, 
-            status: 'disconnected',
-            userName,
-            userPhone,
-            auth: process.env.VPS_KEY
-        });
+    if (!client) {
+        return res.status(404).send(JSON.stringify({
+            message: 'Client not found or already disconnected.'
+        }));
 
-        // Clean up the disconnected client
-        delete activeClients[clientId];
-        // This will trigger the 'disconnected' event listener automatically
-        await client.destroy();
-
-        res.status(200).send('Disconnection process initiated.');
-    } else {
-        res.status(404).send('Client not found or already disconnected.');
     }
+
+    if (client) {
+        try {
+            console.log(`[${clientId}] Intentional removal requested. Logging out and cleaning up...`);
+            
+            // --- THE FIX: SET THE FLAG ---
+            // Tell the system this logout is on purpose.
+            intentionalLogouts.add(clientId);
+            
+            // Step 1: Gracefully log out from WhatsApp's servers. This will trigger the 'disconnected' event.
+            await client.logout();
+            
+            // Step 2: Manually delete the session folder.
+            const sessionPath = path.join('.wwebjs_auth', `session-${clientId}`);
+            await fs.rm(sessionPath, { recursive: true, force: true });
+            console.log(`[${clientId}] Successfully deleted session folder.`);
+
+            res.status(200).send('Device removed and session data cleared successfully.');
+
+        } catch (error) {
+            console.error(`[${clientId}] Error during manual removal:`, error);
+            // Clean up the flag on error
+            intentionalLogouts.delete(clientId);
+
+            res.status(500).send('Failed to fully remove device.');
+        }
+    } 
 });
 
 router.post('/send-message', async (req, res) => {
