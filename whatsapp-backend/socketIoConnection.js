@@ -18,7 +18,7 @@ function initializeSocket(io) {
             console.log(`✅ User connected via WebSocket: ${user.email}`);
             
             // Join a room named after the user. This is crucial for sending targeted messages.
-            socket.join(userId);
+            socket.join(String(userId));
 
             socket.on('disconnect', () => {
                 console.log(`❌ User disconnected: ${user.email}`);

@@ -21,7 +21,7 @@ router.post('/whatsapp-qr-update', async (req, res) => {
         const deviceId = clientId.split('_')[1];
 
         // Find the user by clientId
-        const user = await UserID.findOne({ where: { userId } });
+        const user = await UserID.findByPk(userId);
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
