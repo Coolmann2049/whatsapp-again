@@ -408,7 +408,7 @@ router.post('/process-incoming-message', async (req, res) => {
 
         // Step 6: Best-Guess Attribution for Campaign Reply
         const campaignContact = await CampaignContacts.findOne({
-            where: { conversation_id: contactRecord.id, status: 'sent' },
+            where: { contact_id: contactRecord.id, status: 'sent' },
             include: [{ model: Campaign, where: { client_id: clientId, status: 'Running' } }],
             order: [['sent_at', 'DESC']]
         });
