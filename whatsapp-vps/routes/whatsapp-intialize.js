@@ -4,6 +4,8 @@ const router = express.Router();
 const axios = require('axios'); // To send webhooks to the Main Backend
 const { initializeClient, sendTestMessage, activeClients, processCampaign, intentionalLogouts  } = require('../controllers/initialize');
 const fs = require('fs').promises;
+const path = require('path');
+
 
 const dotenv = require('dotenv');
 
