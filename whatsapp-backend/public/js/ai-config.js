@@ -36,6 +36,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatInput = document.getElementById('chat-input');
     const sendChatBtn = document.getElementById('send-chat-btn');
 
+    const formalitySlider = document.getElementById('formality');
+    const friendlinessSlider = document.getElementById('friendliness');
+    const creativitySlider = document.getElementById('creativity');
+    const detailSlider = document.getElementById('detail');
+
+
+
     // --- RENDER FUNCTIONS ---
     function renderFAQs() {
         faqListContainer.innerHTML = '';
