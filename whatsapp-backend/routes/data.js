@@ -664,11 +664,11 @@ router.delete('/contacts/:id', async (req, res) => {
         
         // Decrement the count on the associated upload history record before deleting
         await UploadHistory.decrement('total_contacts', {
-            where: { id: contact.uploadHistoryId }
+            where: { id: updateCount.uploadHistoryId }
         });
 
         // Delete the contact
-        await contact.destroy();
+        await updateCount.destroy();
 
         res.status(204).send(); // Success, no content
 

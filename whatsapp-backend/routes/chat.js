@@ -2,10 +2,12 @@
 
 const express = require('express');
 const router = express.Router();
-const { Op } = require('sequelize'); // Import the 'Op' operator for LIKE queries
+const { Op } = require('sequelize');
 
-// Import the necessary models
-const { ChatMessage, Contact, sequelize, Conversation } = require('../models');
+// Import all necessary models, including the new Conversation model
+const { Conversation, ChatMessage, Contact, sequelize } = require('../models');
+
+
 
 // --- "Reader" Endpoint 1: Get the paginated list of conversations ---
 router.get('/conversations', async (req, res) => {
@@ -68,38 +70,38 @@ router.get('/conversations', async (req, res) => {
 });
 
 
-// --- "Reader" Endpoint 2: Get the paginated message history for a contact ---
-router.get('/chat-history/:contactId', async (req, res) => {
+// --- "Reader" Endpoint 2: Get the paginated message history for a conversation ---
+router.get('/chat-history/:conversationId', async (req, res) => {
     try {
-        const { contactId } = req.params;
+        // The parameter is now conversationId, not contactId
+        const { conversationId } = req.params;
         const userId = req.session.userId;
         
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50; // 50 messages per page
+        const limit = parseInt(req.query.limit) || 50;
         const offset = (page - 1) * limit;
 
-        // Fetch both the messages and the contact's current manual mode status
-        const [history, contact] = await Promise.all([
-            ChatMessage.findAndCountAll({
-                where: { userId, conversation_id: contactId },
-                order: [['timestamp', 'DESC']], // Get newest messages first for each page
-                limit,
-                offset
-            }),
-            Conversation.findOne({
-                where: { id: contactId, userId },
-                attributes: ['is_manual_mode']
-            })
-        ]);
+        // First, verify this conversation belongs to the user.
+        const conversation = await Conversation.findOne({
+            where: { id: conversationId, userId }
+        });
 
-        if (!contact) {
-            return res.status(404).json({ error: 'Contact not found.' });
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversation not found.' });
         }
+
+        // Fetch the messages for this conversation_id.
+        const history = await ChatMessage.findAndCountAll({
+            where: { conversation_id: conversationId },
+            order: [['timestamp', 'DESC']],
+            limit,
+            offset
+        });
 
         res.json({
             totalPages: Math.ceil(history.count / limit),
             currentPage: page,
-            is_manual_mode: contact.is_manual_mode,
+            is_manual_mode: conversation.is_manual_mode,
             messages: history.rows
         });
 
@@ -111,23 +113,22 @@ router.get('/chat-history/:contactId', async (req, res) => {
 
 
 // --- "State Changer" Endpoint: Toggle manual mode for a conversation ---
-router.put('/conversations/:contactId/toggle-manual', async (req, res) => {
+router.put('/conversations/:conversationId/toggle-manual', async (req, res) => {
     try {
-        const { contactId } = req.params;
+        const { conversationId } = req.params;
         const userId = req.session.userId;
 
-        // Find the contact to ensure it belongs to the user
-        const contact = await Conversation.findOne({
-            where: { id: contactId, userId }
+        const conversation = await Conversation.findOne({
+            where: { id: conversationId, userId }
         });
 
-        if (!contact) {
-            return res.status(404).json({ error: 'Contact not found or you do not have permission to modify it.' });
+        if (!conversation) {
+            return res.status(404).json({ error: 'Conversation not found.' });
         }
 
-        // Flip the boolean value and save
-        const newMode = !contact.is_manual_mode;
-        await contact.update({ is_manual_mode: newMode });
+        // Flip the boolean value and save.
+        const newMode = !conversation.is_manual_mode;
+        await conversation.update({ is_manual_mode: newMode });
 
         res.json({ success: true, is_manual_mode: newMode });
 

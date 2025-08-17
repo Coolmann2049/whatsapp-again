@@ -390,7 +390,6 @@ router.post('/process-incoming-message', async (req, res) => {
         }
 
         // --- At this point, we know we are going to interact. Now we log. ---
-        
         // Step 5: Log the incoming message, linking it to the conversation.
         await ChatMessage.create({
             conversation_id: conversation.id,
@@ -409,7 +408,7 @@ router.post('/process-incoming-message', async (req, res) => {
 
         // Step 6: Best-Guess Attribution for Campaign Reply
         const campaignContact = await CampaignContacts.findOne({
-            where: { contact_id: contactRecord.id, status: 'sent' },
+            where: { conversation_id: contactRecord.id, status: 'sent' },
             include: [{ model: Campaign, where: { client_id: clientId, status: 'Running' } }],
             order: [['sent_at', 'DESC']]
         });
