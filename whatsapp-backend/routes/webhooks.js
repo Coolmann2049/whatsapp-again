@@ -349,7 +349,7 @@ router.post('/process-incoming-message', async (req, res) => {
         // Check if this contact exists in the user's database at all. If not, ignore.
         const contactRecord = await Contact.findOne({ 
             where: { phone: contactNumber, userId: userId },
-            order: [['createdAt', 'DESC']] // Get the most recent record if duplicates exist
+            order: [['created_at', 'DESC']] // Get the most recent record if duplicates exist
         });
 
         if (!contactRecord) {
