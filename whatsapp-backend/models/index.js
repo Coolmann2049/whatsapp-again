@@ -28,6 +28,8 @@ const DialogFlows = require('./dialogFlows.model')(sequelize);
 const AiConfiguration = require('./aiConfiguration.model')(sequelize);
 const ChatMessage = require('./chatMessage.model')(sequelize);
 const Conversation = require('./conversations.model')(sequelize);
+const UserUsage = require('./userUsage.model')(sequelize);
+
 
 // Initialize database
 async function initializeDatabase() {
@@ -116,5 +118,6 @@ module.exports = {
   AiConfiguration,
   ChatMessage,
   Conversation,
+  UserUsage,
   initializeDatabase
 };

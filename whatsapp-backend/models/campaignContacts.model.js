@@ -43,6 +43,11 @@ module.exports = (sequelize) => {
             type: DataTypes.STRING, // e.g., 'pending', 'sent', 'failed', 'replied'
             defaultValue: 'pending'
         },
+        ai_reply_count: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 0
+        },
         sent_at: {
             type: DataTypes.DATE,
             allowNull: true

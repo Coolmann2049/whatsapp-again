@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { UserID, AiConfiguration, DialogFlows, Campaign, MessageTemplate, CampaignContacts, Contact, ChatMessage, Conversation } = require('../models');
+const { UserID, AiConfiguration, DialogFlows, UserUsage, Campaign, MessageTemplate, CampaignContacts, Contact, ChatMessage, Conversation } = require('../models');
 const { generateAiResponse, sendEmail } = require('./services/aiServices');
 const dotenv = require('dotenv');
 
@@ -208,6 +208,19 @@ router.get('/next-contact/:campaignId', async (req, res) => {
             return res.status(404).json({ error: 'Campaign not found.' });
         }
 
+        const userId = campaign.userId;
+
+        const user = await UserID.findByPk(userId);
+
+        // --- NEW RATE LIMITING LOGIC ---
+        const usage = await UserUsage.findByPk(userId);
+        
+        if (usage && usage.campaign_messages_sent >= user.daily_campaign_limit) {
+            console.log(`User ${userId} has reached their daily campaign limit of ${campaign.user.daily_campaign_limit}. Pausing campaign ${campaignId}.`);
+            await campaign.update({ status: 'Paused_Limit' });
+            return res.json(null); // Signal to the worker to stop
+        }
+
         // Find the next pending contact for this campaign
         const campaignContact = await CampaignContacts.findOne({
             where: { campaign_id: campaignId, status: 'pending' },
@@ -230,6 +243,7 @@ router.get('/next-contact/:campaignId', async (req, res) => {
         
         const sanitizedPhone = sanitizePhoneNumber(campaignContact.Contact.phone);
 
+        await UserUsage.increment('campaign_messages_sent', { where: { userId } });
 
         // Send back all necessary data for the worker
         res.json({
@@ -319,73 +333,97 @@ router.post('/running-campaigns', async (req, res) => {
  * This is the master webhook for processing all incoming messages from the worker.
  * It decides whether to attribute a reply to a campaign, use the AI, or use the keyword bot.
  */
-router.post('/process-incoming-message', async (req, res) => {
-    console.log('e');
-    const { clientId, contactNumber, messageBody, auth} = req.body;
-    
-    if (auth != process.env.VPS_KEY) {
-        return res.status(401).json({ message: 'Unauthorized' });
-    }
+// In your webhooksRouter.js on the MAIN BACKEND
 
-    // Immediately send a 200 OK to the worker so it doesn't have to wait.
+router.post('/process-incoming-message', async (req, res) => {
+    const { clientId, contactNumber, messageBody } = req.body;
+    
+    // Immediately acknowledge the request so the worker can move on.
     res.sendStatus(200);
 
     try {
         const userId = clientId.split('_')[0];
+        const deviceId = clientId.split('_')[1];
+        
+        // --- Step 1: The Safety Net ---
+        // Check if this contact exists in the user's database at all. If not, ignore.
+        const contactRecord = await Contact.findOne({ 
+            where: { phone: contactNumber, userId: userId },
+            order: [['createdAt', 'DESC']] // Get the most recent record if duplicates exist
+        });
 
-        // Step 1: Check if the contact exists in our system at all. If not, ignore.
-        const contactExists = await Contact.findOne({ where: { phone: contactNumber, userId: userId } });
-        if (!contactExists) {
+        if (!contactRecord) {
             console.log(`Ignoring message from ${contactNumber}: Not a known business contact.`);
             return;
         }
 
-        // Step 2: Find or create the single, authoritative conversation thread.
+        // --- Step 2: Get the Authoritative Conversation Thread ---
+        // Find or create the single conversation record for this person.
         const [conversation] = await Conversation.findOrCreate({
             where: { userId, contact_phone: contactNumber }
         });
 
-        // Step 3: Check for Manual Mode. If active, stop immediately.
+        // --- Step 3: The Manual Mode Check ---
+        // Check the flag on the conversation record. If active, stop immediately.
         if (conversation.is_manual_mode) {
             console.log(`Conversation with ${contactNumber} is in manual mode. No reply will be sent.`);
             return;
         }
-
-        // Step 4: Check the user's global reply mode.
+        
+        // --- Step 4: The Global Reply Mode Check ---
         const user = await UserID.findByPk(userId);
         if (user.reply_mode === 'off') {
             console.log(`Auto-reply is turned off for user ${userId}. No reply will be sent.`);
             return;
         }
 
-        // --- At this point, we know we are going to interact. Now we can log. ---
-        // Step 5: Log the incoming message.
+        // --- At this point, we know we are going to interact. Now we log. ---
+        
+        // Step 5: Log the incoming message, linking it to the conversation.
         await ChatMessage.create({
             conversation_id: conversation.id,
             sender: 'user',
             message_content: messageBody
         });
 
+        // --- NEW: Daily Bot Reply Limit Check ---
+        const usage = await UserUsage.findOne({ where: { userId } });
+        if (usage && usage.bot_replies_sent >= user.daily_reply_limit) {
+            console.log(`User ${userId} has reached their daily bot reply limit of ${user.daily_reply_limit}. No reply will be sent.`);
+            // Optionally, send a one-time email notification here
+            return; // Stop processing
+        }
+
+        // Step 6: Best-Guess Attribution for Campaign Reply
+        const campaignContact = await CampaignContacts.findOne({
+            where: { contact_id: contactRecord.id, status: 'sent' },
+            include: [{ model: Campaign, where: { client_id: clientId, status: 'Running' } }],
+            order: [['sent_at', 'DESC']]
+        });
+        if (campaignContact) {
+            await campaignContact.update({ status: 'replied', replied_at: new Date() });
+        }
+
+        // Step 7: Determine the bot's reply.
         let botReply = null;
 
         if (user.reply_mode === 'ai') {
-            console.log('ai mode');
+            // AI LIMIT LOGIC: Only apply the 10-reply limit if it's a campaign reply.
+            if (campaignContact && campaignContact.ai_reply_count >= 10) {
+                console.log(`AI reply limit reached for contact ${contactRecord.id} in campaign ${campaignContact.campaign_id}.`);
+                return; // Stop processing
+            }
+            
             const aiConfig = await AiConfiguration.findByPk(userId);
-            const chatHistory = await ChatMessage.findAll({
-                where: {
-                    userId: userId,
-                    conversation_id: conversation.id
-                },
-                order: [['timestamp', 'DESC']], // Get the most recent messages
-                limit: 10 // Limit to the last 10 messages for context
+            const chatHistory = await ChatMessage.findAll({ 
+                where: { conversation_id: conversation.id }, 
+                order: [['timestamp', 'DESC']], 
+                limit: 10 
             });
+            
+            botReply = await generateAiResponse(aiConfig, chatHistory.reverse(), messageBody);
 
-            // The AI needs the history in chronological order (oldest to newest)
-            // so we reverse the array we just fetched.
-            const reversedHistory = chatHistory.reverse(); 
-            botReply = await generateAiResponse(aiConfig, reversedHistory, messageBody);
         } else if (user.reply_mode === 'keyword') {
-            // Keyword Bot Logic
             const dialogFlows = await DialogFlows.findAll({ where: { userId } });
             for (const flow of dialogFlows) {
                 if (messageBody.toLowerCase().includes(flow.trigger_message.toLowerCase())) {
@@ -394,32 +432,37 @@ router.post('/process-incoming-message', async (req, res) => {
                 }
             }
         }
-        console.log(botReply);
-        // --- Step 5: Send the Reply (if one was determined) ---
+
+        // Step 8: If a reply was generated, log it, increment counters, and send it.
         if (botReply) {
+            // Increment the daily reply counter
+            await UserUsage.increment('bot_replies_sent', { where: { userId } });
+            
+            // If it was a campaign-related AI reply, increment that specific counter
+            if (user.reply_mode === 'ai' && campaignContact) {
+                await campaignContact.increment('ai_reply_count');
+            }
+
+            // Log the bot's reply
             await ChatMessage.create({
-                userId,
                 conversation_id: conversation.id,
                 sender: 'bot',
                 message_content: botReply
             });
 
+            // Command the worker to send the message
             await fetch(`${process.env.VPS_URL}/api/send-message`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ clientId, number: contactNumber, message: botReply, auth: process.env.VPS_KEY })
+                    'Content-Type': 'application/json'                },
+                body: JSON.stringify({ clientId, number: contactNumber, message: botReply, auth: process.env.VPS_AUTH })
             });
-        } else {
-            console.log(`No reply action found for message from ${contactNumber}.`);
         }
 
     } catch (error) {
         console.error('Error processing incoming message webhook:', error);
     }
 });
-
 
 
 

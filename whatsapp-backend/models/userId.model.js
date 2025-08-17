@@ -62,6 +62,16 @@ module.exports = (sequelize) => {
       allowNull: false,
       defaultValue: 0
     },
+    daily_campaign_limit: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1000 // The default limit for new users
+    },
+    daily_reply_limit: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 500 // The default limit for new users
+    },
     reply_mode: {
       type: DataTypes.ENUM('ai', 'keyword', 'off'),
       allowNull: false,

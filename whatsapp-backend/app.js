@@ -11,7 +11,7 @@ const http = require('http');
 const { Server } = require("socket.io");
 const { initializeSocket } = require('./socketIoConnection');
 const { startAnalyticsJob } = require('./cron/analyticsJob');
-
+const { startDailyJobs } = require('./cron/dailyJob');
 // Load environment variables
 dotenv.config();
 
@@ -108,6 +108,7 @@ initializeDatabase().then(() => {
 
     // Start the cron job
     startAnalyticsJob();
+    startDailyJobs();
   });
 }).catch(error => {
   console.error('Unable to initialize database:', error);
