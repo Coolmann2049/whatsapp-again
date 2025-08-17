@@ -285,13 +285,7 @@ async function intializeSocket() {
     socket.on('device-update', (data) => {
         console.log('Recieved new device details after logging in.');
 
-         const newDevice = {
-            id: data.id,
-            name: data.name,
-            status: data.status,
-            phone: data.phone
-        };
-        devices.push(newDevice);
+        initializeData();
         renderDevices();
 
         //Reset the modal
