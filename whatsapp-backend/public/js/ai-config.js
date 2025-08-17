@@ -136,11 +136,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const configData = {
             business_name: businessNameInput.value,
             industry: industryInput.value,
-            business_description: descriptionInput.value,
-            key_products: keyProductsInput.value,
+            business_description: descriptionInput.value.replace(/\n/g, ' '),
+            key_products: keyProductsInput.value.replace(/\n/g, ' '),
             communication_tone: tonePreferenceSelect.value,
-            not_to_do_instructions: notToDoInput.value,
-            knowledgeBase: knowledgeBaseInput.value,
+            not_to_do_instructions: notToDoInput.value.replace(/\n/g, ' '),
+            knowledgeBase: knowledgeBaseInput.value.replace(/\n/g, ' '),
             personality: {
                 formality: parseInt(formalitySlider.value),
                 friendliness: parseInt(friendlinessSlider.value),

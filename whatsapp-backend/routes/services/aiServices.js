@@ -50,7 +50,7 @@ async function generateAiResponse(aiConfig, chatHistory, newMessage) {
             content: "You are an expert AI assistant for a business."
         },
         {
-            role:'bot',
+            role:'assistant',
             content:prompt
 
         },
