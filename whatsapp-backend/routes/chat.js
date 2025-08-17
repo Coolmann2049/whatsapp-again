@@ -5,56 +5,60 @@ const router = express.Router();
 const { Op } = require('sequelize'); // Import the 'Op' operator for LIKE queries
 
 // Import the necessary models
-const { ChatMessage, Contact, sequelize } = require('../models');
+const { ChatMessage, Contact, sequelize, Conversation } = require('../models');
 
 // --- "Reader" Endpoint 1: Get the paginated list of conversations ---
 router.get('/conversations', async (req, res) => {
     try {
         const userId = req.session.userId;
-        
-        // Pagination
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 30; // 30 conversations per page
+        const limit = parseInt(req.query.limit) || 30;
         const offset = (page - 1) * limit;
-
-        // Search
         const searchQuery = req.query.search || '';
-        let contactWhereClause = {};
 
-        if (searchQuery) {
-            contactWhereClause = {
-                [Op.or]: [
-                    { name: { [Op.like]: `%${searchQuery}%` } },
-                    { phone: { [Op.like]: `%${searchQuery}%` } }
-                ]
-            };
-        }
-
-        // We use findAndCountAll on the Contact model to correctly paginate the filtered results
-        const result = await Contact.findAndCountAll({
+        // The query is now correctly on the Conversation model.
+        const result = await Conversation.findAndCountAll({
             limit,
             offset,
             where: {
                 userId,
-                ...contactWhereClause
+                // Search the phone number directly on the conversation table.
+                contact_phone: { [Op.like]: `%${searchQuery}%` }
             },
-            // Only include contacts that have messages
-            include: [{
-                model: ChatMessage,
-                attributes: [], // We don't need the message data here, just the link
-                required: true // This performs an INNER JOIN
-            }],
-            group: ['Contact.id'], // Group by contact to get unique conversations
-            order: [
-                // Order by the timestamp of the most recent message for that contact
-                [sequelize.literal('(SELECT MAX(timestamp) FROM chat_messages WHERE chat_messages.contact_id = Contact.id)'), 'DESC']
-            ]
+            order: [['updatedAt', 'DESC']] // Order by the most recent interaction.
         });
 
+        // To get the most recent contact name for display, we do a second, efficient query.
+        const contactPhones = result.rows.map(convo => convo.contact_phone);
+        let contactNameMap = new Map();
+
+        if (contactPhones.length > 0) {
+            const contacts = await Contact.findAll({
+                where: {
+                    userId,
+                    phone: contactPhones
+                },
+                // Get the most recent record for each phone number.
+                order: [['createdAt', 'DESC']],
+            });
+            // Create a map so we only get the latest name for each phone number.
+            contacts.forEach(c => {
+                if (!contactNameMap.has(c.phone)) {
+                    contactNameMap.set(c.phone, c.name);
+                }
+            });
+        }
+
+        // Combine the conversation data with the contact names.
+        const conversationsWithNames = result.rows.map(convo => ({
+            ...convo.toJSON(),
+            contact_name: contactNameMap.get(convo.contact_phone) || convo.contact_phone
+        }));
+
         res.json({
-            totalPages: Math.ceil(result.count.length / limit),
+            totalPages: Math.ceil(result.count / limit),
             currentPage: page,
-            conversations: result.rows
+            conversations: conversationsWithNames
         });
 
     } catch (error) {
@@ -82,7 +86,7 @@ router.get('/chat-history/:contactId', async (req, res) => {
                 limit,
                 offset
             }),
-            Contact.findOne({
+            Conversation.findOne({
                 where: { id: contactId, userId },
                 attributes: ['is_manual_mode']
             })
@@ -113,7 +117,7 @@ router.put('/conversations/:contactId/toggle-manual', async (req, res) => {
         const userId = req.session.userId;
 
         // Find the contact to ensure it belongs to the user
-        const contact = await Contact.findOne({
+        const contact = await Conversation.findOne({
             where: { id: contactId, userId }
         });
 
