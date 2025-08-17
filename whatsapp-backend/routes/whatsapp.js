@@ -163,6 +163,14 @@ router.post('/campaigns/:id/start', async (req, res) => {
         if (runningCampaign && runningCampaign.id !== parseInt(campaignId)) {
             return res.status(409).json({ error: 'Another campaign is already running on this device.' });
         }
+        
+        // Check the usage
+        const { usage } = await checkAndResetUsage(userId);
+        if (usage.campaign_messages_sent >= user.daily_campaign_limit) {
+            return res.status(429).json({ 
+                error: `You have reached your daily limit of ${user.daily_campaign_limit} campaign messages. This campaign will resume automatically when your limit resets.` 
+            });
+        }
 
         // --- Step 4: If all checks pass, proceed ---
         await campaign.update({ status: 'Running' });
