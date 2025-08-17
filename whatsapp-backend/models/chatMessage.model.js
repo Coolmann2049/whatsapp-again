@@ -54,7 +54,7 @@ module.exports = (sequelize) => {
         indexes: [
             // Add indexes for all foreign keys to speed up queries
             { fields: ['userId'] },
-            { fields: ['contact_id'] },
+            { fields: ['conversation_id'] },
             { fields: ['campaign_id'] }
         ]
     });

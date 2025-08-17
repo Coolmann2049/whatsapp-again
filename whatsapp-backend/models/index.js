@@ -36,7 +36,7 @@ async function initializeDatabase() {
     console.log('Database connection has been established successfully.');
     
     // Force sync all models with the database
-    await sequelize.sync({ alter: true });
+    await sequelize.sync({ alter : true });
     console.log('Database models synchronized successfully.');
 
     // A Campaign belongs to a single MessageTemplate

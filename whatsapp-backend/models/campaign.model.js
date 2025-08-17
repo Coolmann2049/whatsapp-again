@@ -17,12 +17,13 @@ module.exports = (sequelize) => {
         },
         template_id: {
             type: DataTypes.INTEGER,
-            allowNull: false,
+            allowNull: true,
             references: {
                 model: 'message_templates',
+                key: 'id' 
             },
             onDelete: 'SET NULL', 
-            onUpdate: 'SET NULL'
+            onUpdate: 'CASCADE'
         },
         userId: {
             type: DataTypes.INTEGER,
