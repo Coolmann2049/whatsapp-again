@@ -209,7 +209,7 @@ router.get('/campaign-creation-data', async (req, res) => {
 
         const campaignsWithDeviceNames = campaigns.map(campaign => {
             const campaignJSON = campaign.toJSON(); // Get a plain object
-            const deviceId = campaignJSON.client_id.split('_')[2];
+            const deviceId = campaignJSON.client_id.split('_')[1];
 
             const deviceName = deviceNameMap.get(String(deviceId));
             return {
