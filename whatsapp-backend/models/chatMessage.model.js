@@ -20,11 +20,11 @@ module.exports = (sequelize) => {
                 key: 'userId'
             }
         },
-        conversation_id: { 
+        conversation_id: { // Correct: Links to the conversations table
             type: DataTypes.INTEGER,
             allowNull: false,
             references: {
-                model: 'conversations', // Links to the new table
+                model: 'conversations',
                 key: 'id'
             }
         },

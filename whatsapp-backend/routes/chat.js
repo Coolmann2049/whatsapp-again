@@ -92,7 +92,7 @@ router.get('/chat-history/:conversationId', async (req, res) => {
 
         // Fetch the messages for this conversation_id.
         const history = await ChatMessage.findAndCountAll({
-            where: { conversation_id: conversationId },
+            where: { conversation_id: conversation.id, userId: conversation.userId },
             order: [['timestamp', 'DESC']],
             limit,
             offset
