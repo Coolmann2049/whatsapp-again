@@ -31,6 +31,11 @@ module.exports = (sequelize) => {
                 key: 'userId'
             },
             onDelete: 'CASCADE'
+        },
+        is_archived: { // For soft-archiving upload history
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false
         }
     }, {
         tableName: 'upload_history',

@@ -27,6 +27,7 @@ const WelcomeMessage = require('./welcomeMessage.model')(sequelize);
 const DialogFlows = require('./dialogFlows.model')(sequelize);
 const AiConfiguration = require('./aiConfiguration.model')(sequelize);
 const ChatMessage = require('./chatMessage.model')(sequelize);
+const Conversation = require('./conversations.model')(sequelize);
 
 // Initialize database
 async function initializeDatabase() {
@@ -80,6 +81,20 @@ async function initializeDatabase() {
         foreignKey: 'campaign_id'
     });
     
+    UserID.hasMany(Conversation, {
+    foreignKey: 'userId'
+    });
+    Conversation.belongsTo(UserID, {
+        foreignKey: 'userId'
+    });
+
+    // A Conversation can have many Chat Messages
+    Conversation.hasMany(ChatMessage, {
+        foreignKey: 'conversation_id'
+    });
+    ChatMessage.belongsTo(Conversation, {
+        foreignKey: 'conversation_id'
+    });
   } catch (error) {
     console.error('Unable to initialize database:', error);
     process.exit(1);
@@ -100,5 +115,6 @@ module.exports = {
   DialogFlows,
   AiConfiguration,
   ChatMessage,
+  Conversation,
   initializeDatabase
 };

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { UserID, AiConfiguration,DialogFlows, Campaign, MessageTemplate, CampaignContacts, Contact, ChatMessage } = require('../models');
+const { UserID, AiConfiguration, DialogFlows, Campaign, MessageTemplate, CampaignContacts, Contact, ChatMessage, Conversation } = require('../models');
 const { generateAiResponse, sendEmail } = require('./services/aiServices');
 const dotenv = require('dotenv');
 
@@ -18,8 +18,7 @@ router.post('/whatsapp-qr-update', async (req, res) => {
     try {
 
         const userId = clientId.split('_')[0];
-        const clientEmail = clientId.split('_')[1];
-        const count = clientId.split('_')[2];
+        const deviceId = clientId.split('_')[1];
 
         // Find the user by clientId
         const user = await UserID.findOne({ where: { userId } });
@@ -31,7 +30,7 @@ router.post('/whatsapp-qr-update', async (req, res) => {
         const io = req.io;                    // Access the io instance
 
         //Send to the correct room
-        io.to(clientEmail).emit('qr-code-update', { qrCode: qrCode });
+        io.to(userId).emit('qr-code-update', { qrCode: qrCode });
 
         // Update the database that there be a new instance
         res.status(200).json({ message: 'QR code updated successfully' });
@@ -50,19 +49,17 @@ router.post('/whatsapp-status-update', async (req, res) => {
 
     try {
         const userId = clientId.split('_')[0];
-        const clientEmail = clientId.split('_')[1];
-        const deviceId = clientId.split('_')[2];
+        const deviceId = clientId.split('_')[1];
 
         const user = await UserID.findByPk(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-
         const email = user.email;
 
         let devices = user.devices_data ? JSON.parse(user.devices_data) : [];
         const existingDeviceIndex = devices.findIndex(d => d.id === deviceId);
-        let deviceName = userName; // Default to the name from the webhook
+        let deviceName = userName; 
 
         if (status === 'connected') {
             const deviceData = {
@@ -79,7 +76,7 @@ router.post('/whatsapp-status-update', async (req, res) => {
                 console.log(`Device ${deviceId} reconnected. Updating its status.`);
                 devices[existingDeviceIndex] = deviceData;
             } else {
-                // --- ADD A TRULY NEW DEVICE ---
+                // --- ADD A NEW DEVICE ---
                 console.log(`New device ${deviceId} connected. Adding to the list.`);
                 devices.push(deviceData);
                 // Only increment the user's total device count when a new one is added
@@ -87,14 +84,11 @@ router.post('/whatsapp-status-update', async (req, res) => {
             }
         } else if (status === 'disconnected') {
             // --- MARK THE DEVICE AS DISCONNECTED ---
-            // We don't remove the device or decrement the count, just update its status.
             if (existingDeviceIndex > -1) {
                 console.log(`Device ${deviceId} disconnected. Updating status.`);
                 devices[existingDeviceIndex].status = 'disconnected';
-                deviceName = devices[existingDeviceIndex].name; // Get the stored name for the email
+                deviceName = devices[existingDeviceIndex].name; 
             }
-
-            // --- NEW LOGIC STARTS HERE ---
 
             // 1. Pause all active campaigns for this device
             console.log(`Pausing all running campaigns for device ID: ${deviceId}`);
@@ -113,8 +107,7 @@ router.post('/whatsapp-status-update', async (req, res) => {
             if (req.body.userLogout) {
                 const updatedDevices = devices.filter(device => device.clientId !== clientId);
                 user.count = updatedDevices.length;
-                user.devices_data = JSON.stringify(updatedDevices);
-                await user.save();
+                return;
             }
             // 2. Send an email notification to the user
             const subject = 'Alert: Your WhatsApp Device Has Disconnected';
@@ -137,7 +130,7 @@ router.post('/whatsapp-status-update', async (req, res) => {
         
         // Notify the frontend via Socket.IO
         const io = req.io;
-        io.to(clientEmail).emit('device-update', { devices });
+        io.to(userId).emit('device-update', { devices });
         
         res.status(200).json({ message: 'Status updated successfully' });
 
@@ -307,15 +300,9 @@ router.post('/running-campaigns', async (req, res) => {
         
         // Find all campaigns with status 'Running'
         const runningCampaigns = await Campaign.findAll({
-            where: { status: 'Running' },
-            // We must include the UserID model to get the user's email
-            // This assumes you have set up the association between Campaign and UserID
-            include: [{
-                model: UserID,
-                as: 'user', // Make sure you have an alias set up in your association
-                attributes: ['email'] // We only need the email to reconstruct the clientId
-            }]
+            where: { status: 'Running' }
         });
+
 
         console.log(`Found ${runningCampaigns.length} campaigns to resume.`);
         res.json(runningCampaigns);
@@ -344,54 +331,40 @@ router.post('/process-incoming-message', async (req, res) => {
     res.sendStatus(200);
 
     try {
-        // --- Step 1: Identify the User and Contact ---
         const userId = clientId.split('_')[0];
-        
-        const [user, contact] = await Promise.all([
-            UserID.findByPk(userId),
-            Contact.findOne({ where: { phone: contactNumber, userId: userId } })
-        ]);
 
-        if (!user || !contact) {
-            console.log(`Ignoring message from ${contactNumber}: User or contact not found in our system.`);
+        // Step 1: Check if the contact exists in our system at all. If not, ignore.
+        const contactExists = await Contact.findOne({ where: { phone: contactNumber, userId: userId } });
+        if (!contactExists) {
+            console.log(`Ignoring message from ${contactNumber}: Not a known business contact.`);
             return;
         }
 
-        // --- Step 2: Log the Incoming Message ---
+        // Step 2: Find or create the single, authoritative conversation thread.
+        const [conversation] = await Conversation.findOrCreate({
+            where: { userId, contact_phone: contactNumber }
+        });
+
+        // Step 3: Check for Manual Mode. If active, stop immediately.
+        if (conversation.is_manual_mode) {
+            console.log(`Conversation with ${contactNumber} is in manual mode. No reply will be sent.`);
+            return;
+        }
+
+        // Step 4: Check the user's global reply mode.
+        const user = await UserID.findByPk(userId);
+        if (user.reply_mode === 'off') {
+            console.log(`Auto-reply is turned off for user ${userId}. No reply will be sent.`);
+            return;
+        }
+
+        // --- At this point, we know we are going to interact. Now we can log. ---
+        // Step 5: Log the incoming message.
         await ChatMessage.create({
-            userId,
-            contact_id: contact.id,
+            conversation_id: conversation.id,
             sender: 'user',
             message_content: messageBody
         });
-
-        console.log('created chat message');
-        // --- Step 3: Check for an Active Campaign Reply ---
-        const campaignContact = await CampaignContacts.findOne({
-            where: { contact_id: contact.id, status: 'sent' },
-            include: [{ model: Campaign, where: { client_id: clientId, status: 'Running' } }],
-            order: [['sent_at', 'DESC']]
-        });
-
-        if (campaignContact) {
-            await campaignContact.update({ status: 'replied', replied_at: new Date() });
-            console.log(`Attributed reply from ${contactNumber} to campaign ID ${campaignContact.campaign_id}`);
-        }
-
-        // --- Step 4: Decide on the Reply Strategy (AI vs. Keyword vs. Off) ---
-
-        console.log(contact);
-        if (contact.is_manual_mode) {
-            console.log(contact.is_manual_mode);
-            console.log(typeof(contact.is_manual_mode))
-            console.log(`Auto-reply is turned off for this contact. No reply will be sent.`);
-            return; // Stop processing
-            }
-        // NEW: Check if auto-replies are turned off completely.
-        if (user.reply_mode === 'off') {
-            console.log(`Auto-reply is turned off for user ${userId}. No reply will be sent.`);
-            return; // Stop processing
-        }
 
         let botReply = null;
 
@@ -401,7 +374,7 @@ router.post('/process-incoming-message', async (req, res) => {
             const chatHistory = await ChatMessage.findAll({
                 where: {
                     userId: userId,
-                    contact_id: contact.id
+                    conversation_id: conversation.id
                 },
                 order: [['timestamp', 'DESC']], // Get the most recent messages
                 limit: 10 // Limit to the last 10 messages for context
@@ -426,7 +399,7 @@ router.post('/process-incoming-message', async (req, res) => {
         if (botReply) {
             await ChatMessage.create({
                 userId,
-                contact_id: contact.id,
+                conversation_id: conversation.id,
                 sender: 'bot',
                 message_content: botReply
             });

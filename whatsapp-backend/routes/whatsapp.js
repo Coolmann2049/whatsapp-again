@@ -15,8 +15,8 @@ router.delete('/delete-device/:deviceId', async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
         }
-
-        const clientId = `${userId}_${email.replace(/[^a-zA-Z0-9_-]/g, '_')}_${deviceId}`;
+``
+        const clientId = `${userId}_${deviceId}`;
 
         try {
             // --- Call the Worker VPS ---
@@ -61,8 +61,7 @@ router.delete('/delete-device/:deviceId', async (req, res) => {
 router.post('/send-test-message/:deviceId', async (req, res) => {
     const { deviceId } = req.params;
     const { number, message } = req.body;
-    const email = req.session.email
-    const clientId = `${req.session.userId}_${email.replace(/[^a-zA-Z0-9_-]/g, '-')}_${deviceId}`
+    const clientId = `${req.session.userId}_${deviceId}`
 
     if (!deviceId || !number || !message) {
         return res.status(400).json({ message: 'clientId, number, and message are required.' });
@@ -128,12 +127,36 @@ router.post('/campaigns/:id/start', async (req, res) => {
         const campaignId = req.params.id;
         const userId = req.session.userId;
 
+        // --- Step 1: Fetch all necessary data in parallel ---
         const campaign = await Campaign.findOne({ where: { id: campaignId, userId } });
+        const user = await UserID.findByPk(userId, { attributes: ['devices_data'] });
+
         if (!campaign) {
             console.log('campaign not found for ', campaignId, userId);
             return res.status(404).json({ error: 'Campaign not found.' });
         }
 
+        // --- Step 2: Pre-Flight Safety Checks ---
+
+        // Check 1: Does the campaign have a template?
+        if (!campaign.template_id) {
+            return res.status(400).json({ error: 'This campaign cannot be started because its message template has been deleted. Please edit the campaign and select a new template.' });
+        }
+
+        // Check 2: Is the selected device connected?
+        const devices = user && user.devices_data ? JSON.parse(user.devices_data) : [];
+        const selectedDevice = devices.find(d => String(d.clientId) === String(campaign.clientId));
+        if (!selectedDevice || selectedDevice.status !== 'connected') {
+            return res.status(400).json({ error: 'The device for this campaign is disconnected. Please reconnect it on the Manage Devices page to start this campaign.' });
+        }
+
+        // Check 3: Does the campaign have any contacts to send to?
+        const contactCount = await CampaignContact.count({ where: { campaign_id: campaignId } });
+        if (contactCount === 0) {
+            return res.status(400).json({ error: 'This campaign has no contacts. Please edit the campaign and add a contact list.' });
+        }
+
+        // --- Step 3: Check for other running campaigns (as before) ---
         const runningCampaign = await Campaign.findOne({
             where: { client_id: campaign.client_id, status: 'Running' }
         });
@@ -141,6 +164,7 @@ router.post('/campaigns/:id/start', async (req, res) => {
             return res.status(409).json({ error: 'Another campaign is already running on this device.' });
         }
 
+        // --- Step 4: If all checks pass, proceed ---
         await campaign.update({ status: 'Running' });
 
         const response = await fetch(`${process.env.VPS_URL}/api/process-campaign`, {
@@ -166,7 +190,6 @@ router.post('/campaigns/:id/start', async (req, res) => {
         res.status(500).json({ error: 'Failed to start campaign.' });
     }
 });
-
 
 
 function sanitizePhoneNumber(rawPhoneNumber) {

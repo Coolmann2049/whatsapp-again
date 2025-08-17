@@ -47,7 +47,7 @@ module.exports = (sequelize) => {
             type: DataTypes.STRING(255),
             defaultValue: ''
         },
-        is_manual_mode: {
+        is_deleted: { // For soft-deleting manual contacts
             type: DataTypes.BOOLEAN,
             allowNull: false,
             defaultValue: false
@@ -59,9 +59,9 @@ module.exports = (sequelize) => {
         updatedAt: 'updated_at',
         indexes: [
             {
-                name: 'idx_phone_user_unique',
+                name: 'idx_phone_user_uploadHistoryId_unique',
                 unique: true,
-                fields: ['phone', 'userId'] // <-- COMPOSITE UNIQUE KEY
+                fields: ['phone', 'userId', 'uploadHistoryId'] // <-- COMPOSITE UNIQUE KEY
             },
             {
                 name: 'idx_userId',

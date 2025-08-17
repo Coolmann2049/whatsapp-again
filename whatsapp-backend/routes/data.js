@@ -16,7 +16,6 @@ router.post('/campaigns', async (req, res) => {
         const { name, type, template_id, deviceId, contactFileIds, clientId } = req.body;
         const userId = req.session.userId;
 
-        // Step 1: Create the main campaign record to get its ID
         const newCampaign = await Campaign.create({
             name,
             type: 'Standard', // Or get from body if needed
@@ -27,7 +26,6 @@ router.post('/campaigns', async (req, res) => {
             client_id: clientId
         });
 
-        // Step 2: Find all contacts that belong to the selected upload files
         const contactsToInclude = await Contact.findAll({
             where: {
                 userId: userId,
@@ -42,41 +40,27 @@ router.post('/campaigns', async (req, res) => {
         }
 
         // Step 3: Prepare the data for the linking table
-        const campaignContactsData = contactsToInclude.map(contact => ({
-            campaign_id: newCampaign.id,
-            contact_id: contact.id,
-            userId: userId,
+            const campaignContactsData = contactsToInclude.map(contact => ({
+                campaign_id: newCampaign.id,
+                contact_id: contact.id,
+                userId: userId,
 
             // Status defaults to 'pending'
-        }));
-
-        // Step 4: Bulk insert all the links into the campaign_contacts table
-        await CampaignContacts.bulkCreate(campaignContactsData);
+            }));
+            await CampaignContacts.bulkCreate(campaignContactsData);
 
         res.status(201).json({ success: true, campaign: newCampaign });
-
     } catch (error) {
         console.error('Error creating campaign:', error);
         res.status(500).json({ error: 'Failed to create campaign' });
     }
 });
 
-// Get all campaigns for the logged-in user
+// GET: Get all campaigns (This is a simplified version, the main data comes from the bundled endpoint)
 router.get('/campaigns', async (req, res) => {
     try {
         const userId = req.session.userId;
-
-        // Use .findAll() with an 'include' to perform the JOIN
-        const campaigns = await Campaign.findAll({
-            where: { userId: userId }, // Filter campaigns by the logged-in user
-            include: [{
-                model: MessageTemplate,
-                as: 'template', // Use an alias for the included model
-                attributes: ['name', 'content'] // Only include specific template fields
-            }],
-            order: [['created_at', 'DESC']] // Sort by creation date
-        });
-
+        const campaigns = await Campaign.findAll({ where: { userId } });
         res.json({ success: true, campaigns });
     } catch (error) {
         console.error('Error fetching campaigns:', error);
@@ -84,6 +68,8 @@ router.get('/campaigns', async (req, res) => {
     }
 });
 
+
+// DELETE: Delete a specific campaign
 router.delete('/campaigns/:id', async (req, res) => {
     try {
         const { id } = req.params;
@@ -95,9 +81,9 @@ router.delete('/campaigns/:id', async (req, res) => {
         });
 
         if (result === 0) {
-            return res.status(404).json({ error: 'Campaign not found or you do not have permission to delete it' });
+            return res.status(404).json({ error: 'Campaign not found.' });
         }
-        res.status(204).send(); // Success, no content to return
+        res.status(204).send();
     } catch (error) {
         console.error('Error deleting campaign:', error);
         res.status(500).json({ error: 'Failed to delete campaign' });
@@ -111,38 +97,30 @@ router.put('/campaigns/:id/pause', async (req, res) => {
         const campaignId = req.params.id;
         const userId = req.session.userId;
 
-        // Find the campaign to ensure it's in a 'Running' state
-        const campaign = await Campaign.findOne({
-            where: {
-                id: campaignId,
-                userId: userId,
-                status: 'Running' // Only allow pausing of running campaigns
-            }
-        });
+        const [updateCount] = await Campaign.update(
+            { status: 'Paused' },
+            { where: { id: campaignId, userId, status: 'Running' } }
+        );
 
-        if (!campaign) {
-            return res.status(404).json({ error: 'Running campaign not found or you do not have permission to pause it.' });
+        if (updateCount === 0) {
+            return res.status(404).json({ error: 'Running campaign not found.' });
         }
 
-        // Update the status to 'Paused'
-        await campaign.update({ status: 'Paused' });
-
         res.json({ success: true, message: 'Campaign has been paused.' });
-
     } catch (error) {
         console.error('Error pausing campaign:', error);
         res.status(500).json({ error: 'Failed to pause campaign.' });
     }
 });
 
+
+// PUT: Update an existing campaign
 router.put('/campaigns/:id', async (req, res) => {
     try {
         const campaignId = req.params.id;
         const userId = req.session.userId;
         const { name, template_id, clientId, contactFileIds } = req.body;
 
-        // Step 1: Update the main campaign details
-        // We also check that the campaign belongs to the logged-in user
         const [updateCount] = await Campaign.update({
             name,
             template_id,
@@ -151,7 +129,6 @@ router.put('/campaigns/:id', async (req, res) => {
             where: { id: campaignId, userId }
         });
 
-        // If no rows were updated, the campaign was not found for this user
         if (updateCount === 0) {
             return res.status(404).json({ error: 'Campaign not found or you do not have permission to edit it.' });
         }
@@ -174,10 +151,11 @@ router.put('/campaigns/:id', async (req, res) => {
         });
 
         // Prepare the new data for the linking table
-        const campaignContactsData = contacts.map(contact => ({
-            campaign_id: campaignId,
-            contact_id: contact.id
-        }));
+            const campaignContactsData = contacts.map(contact => ({
+                campaign_id: campaignId,
+                contact_id: contact.id,
+                userId: userId
+            }));
 
         // Bulk insert the new links into the campaign_contacts table.
         if (campaignContactsData.length > 0) {
@@ -185,13 +163,13 @@ router.put('/campaigns/:id', async (req, res) => {
         }
 
         res.json({ success: true, message: 'Campaign updated successfully.' });
-
     } catch (error) {
         console.error('Error updating campaign:', error);
         res.status(500).json({ error: 'Failed to update campaign.' });
     }
 });
 
+// --- Main Data Endpoint for Campaign Creation Page ---
 router.get('/campaign-creation-data', async (req, res) => {
     try {
         const userId = req.session.userId;
@@ -225,21 +203,10 @@ router.get('/campaign-creation-data', async (req, res) => {
                 })
         ]);
 
-        // Safely parse the devices_data JSON string
+        // --- Corrected Device Data Handling ---
         const devices = user && user.devices_data ? JSON.parse(user.devices_data) : [];
-        const devicesWithClientId = devices.map(device => {
-            return {
-                ...device, // Keep all original device properties (id, name, status, etc.)
-                clientId: `${userId}_${user.email.replace(/[^a-zA-Z0-9_-]/g, '_')}_${device.id}` // Add the correctly formatted clientId
-            };
-        }); 
+        const deviceNameMap = new Map(devices.map(d => [String(d.id), d.name]));
 
-        const deviceNameMap = new Map();
-        devices.forEach(device => {
-            deviceNameMap.set(String(device.id), device.name); // Ensure IDs are strings for matching
-        });
-
-        // Step 3: Manually attach the device name to each campaign
         const campaignsWithDeviceNames = campaigns.map(campaign => {
             const campaignJSON = campaign.toJSON(); // Get a plain object
             const deviceId = campaignJSON.client_id.split('_')[2];
@@ -247,24 +214,25 @@ router.get('/campaign-creation-data', async (req, res) => {
             const deviceName = deviceNameMap.get(String(deviceId));
             return {
                 ...campaignJSON,
-                device: { // Add a 'device' object to match the frontend's expectation
-                    name: deviceName || 'Unknown Device'
-                }
+                device: { name: deviceName || 'Unknown Device' }
             };
         });
 
-        
-        // 4. Send all data back in a single, organized response
+        const devicesWithClientId = devices.map(device => ({
+            ...device,
+            clientId: `${userId}_${device.id}`
+        }));
+        // --- End of Correction ---
+
         res.json({
             success: true,
             data: {
                 campaigns: campaignsWithDeviceNames,
                 templates,
-                devices:devicesWithClientId,
+                devices: devicesWithClientId,
                 contacts
             }
         });
-
     } catch (error) {
         console.error('Error fetching campaign creation data:', error);
         res.status(500).json({ success: false, error: 'Failed to fetch required data' });
@@ -311,27 +279,76 @@ router.get('/templates', async (req, res) => {
     }
 });
 
-// DELETE: Delete a specific message template
+// PUT: Update an existing message template
+router.put('/templates/:id', async (req, res) => {
+    try {
+        const templateId = req.params.id;
+        const userId = req.session.userId;
+        const { name, content, type } = req.body;
+
+        // 1. Safety Check: See if this template is used by any RUNNING campaigns.
+        const runningCampaignsCount = await Campaign.count({
+            where: {
+                template_id: templateId,
+                userId: userId,
+                status: 'Running'
+            }
+        });
+
+        if (runningCampaignsCount > 0) {
+            return res.status(409).json({ error: 'This template cannot be edited because it is being used by an active campaign. Please pause the campaign first.' });
+        }
+
+        // 2. Proceed with the update
+        const [updateCount] = await MessageTemplate.update({ name, content, type }, {
+            where: { id: templateId, userId }
+        });
+
+        if (updateCount === 0) {
+            return res.status(404).json({ error: 'Template not found or you do not have permission to edit it.' });
+        }
+
+        res.json({ success: true, message: 'Template updated successfully.' });
+
+    } catch (error) {
+        console.error('Error updating template:', error);
+        res.status(500).json({ error: 'Failed to update template.' });
+    }
+});
+
+// DELETE: Delete a specific message template (Updated)
 router.delete('/templates/:id', async (req, res) => {
     try {
-        const { id } = req.params;
+        const templateId = req.params.id;
         const userId = req.session.userId;
 
-        // Ensure the user can only delete their own templates
+        // 1. Safety Check: See if this template is used by any RUNNING campaigns.
+        const runningCampaignsCount = await Campaign.count({
+            where: {
+                template_id: templateId,
+                userId: userId,
+                status: 'Running'
+            }
+        });
+
+        if (runningCampaignsCount > 0) {
+            return res.status(409).json({ error: 'This template cannot be deleted because it is being used by an active campaign. Please pause the campaign first.' });
+        }
+
+        // 2. Proceed with the deletion
         const result = await MessageTemplate.destroy({
-            where: { id, userId }
+            where: { id: templateId, userId }
         });
 
         if (result === 0) {
-            return res.status(404).json({ error: 'Template not found or you do not have permission to delete it' });
+            return res.status(404).json({ error: 'Template not found.' });
         }
         res.status(204).send();
     } catch (error) {
         console.error('Error deleting template:', error);
-        res.status(500).json({ error: 'Failed to delete template' });
+        res.status(500).json({ error: 'Failed to delete template.' });
     }
 });
-
 // DASHBOARD ANALYTICS 
 
 router.get('/dashboard-analytics', async (req, res) => {
@@ -566,6 +583,7 @@ router.post('/ai/test-chat', async (req, res) => {
     }
 });
 
+
 // CSV manual data endpoints: 
 router.post('/contacts/manual', async (req, res) => {
     try {
@@ -576,14 +594,13 @@ router.post('/contacts/manual', async (req, res) => {
         if (!phone) {
             return res.status(400).json({ error: 'Phone number is required.' });
         }
-
+        
         // Sanitize the phone number
         const sanitizedPhone = sanitizePhoneNumber(phone);
         if (!sanitizedPhone) {
             return res.status(400).json({ error: 'Invalid phone number format provided.' });
         }
 
-        // Step 1: Find or create the special "Manually Added" history record
         const [manualHistoryRecord] = await UploadHistory.findOrCreate({
             where: {
                 userId: userId,
@@ -597,45 +614,54 @@ router.post('/contacts/manual', async (req, res) => {
             }
         });
 
-        // Step 2: Create the new contact, linking it to the manual history record
-        const newContact = await Contact.create({
-            name: name || '',
-            phone: sanitizedPhone,
-            company: company || '',
-            userId: userId,
-            uploadHistoryId: manualHistoryRecord.id
+        const existingContact = await Contact.findOne({
+            where: { userId, phone: sanitizedPhone }
         });
 
+        if (existingContact) {
+            // --- "UN-DELETE" LOGIC ---
+            // The contact exists, so we update it and ensure it's active.
+            existingContact.name = name || '';
+            existingContact.company = company || '';
+            existingContact.is_deleted = false; // <-- THE FIX
+            await existingContact.save();
+            return res.status(200).json(existingContact);
+        } else {
+            // --- CREATE NEW LOGIC ---
+            const newContact = await Contact.create({
+                name: name || '',
+                phone: sanitizedPhone,
+                company: company || '',
+                userId: userId,
+                uploadHistoryId: manualHistoryRecord.id
+            });
+
         // Step 3: Increment the total contacts count on the history record
-        await manualHistoryRecord.increment('total_contacts');
-
-        res.status(201).json(newContact);
-
-    } catch (error) {
-        // Handle potential unique constraint violation (duplicate phone number)
-        if (error.name === 'SequelizeUniqueConstraintError') {
-            return res.status(409).json({ error: 'A contact with this phone number already exists.' });
+            await manualHistoryRecord.increment('total_contacts');
+            return res.status(201).json(newContact);
         }
+    } catch (error) {
         console.error('Error adding manual contact:', error);
         res.status(500).json({ error: 'Failed to add contact.' });
     }
 });
 
-// DELETE: Delete a single contact
-
+// DELETE: Soft delete a single manual contact
 router.delete('/contacts/:id', async (req, res) => {
     try {
         const contactId = req.params.id;
         const userId = req.session.userId;
 
-        const contact = await Contact.findOne({
-            where: { id: contactId, userId }
-        });
+        // Instead of destroying, we update the is_deleted flag
+        const [updateCount] = await Contact.update(
+            { is_deleted: true },
+            { where: { id: contactId, userId } }
+        );
 
-        if (!contact) {
+        if (updateCount === 0) {
             return res.status(404).json({ error: 'Contact not found.' });
         }
-
+        
         // Decrement the count on the associated upload history record before deleting
         await UploadHistory.decrement('total_contacts', {
             where: { id: contact.uploadHistoryId }
@@ -652,6 +678,7 @@ router.delete('/contacts/:id', async (req, res) => {
     }
 });
 
+// GET: Get all non-deleted manual contacts
 router.get('/contacts/manual', async (req, res) => {
     try {
         const userId = req.session.userId;
@@ -672,19 +699,20 @@ router.get('/contacts/manual', async (req, res) => {
         // Step 2: Find all contacts that are linked to that specific history record.
         const manualContacts = await Contact.findAll({
             where: {
-                userId: userId,
-                uploadHistoryId: manualHistoryRecord.id
+                userId,
+                uploadHistoryId: manualHistoryRecord.id,
+                is_deleted: false // <-- THE CHANGE
             },
-            order: [['created_at', 'DESC']] // Show the most recently added first
+            order: [['created_at', 'DESC']]
         });
 
         res.json(manualContacts);
-
     } catch (error) {
         console.error('Error fetching manual contacts:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 function sanitizePhoneNumber(rawPhoneNumber) {
     if (!rawPhoneNumber || typeof rawPhoneNumber !== 'string') {
         return null;

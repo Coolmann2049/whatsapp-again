@@ -16,15 +16,15 @@ module.exports = (sequelize) => {
             type: DataTypes.INTEGER,
             allowNull: false,
             references: {
-                model: 'user_id_whatsapp', // Foreign key to your UserID table
+                model: 'user_id_whatsapp', // Foreign key to UserID table
                 key: 'userId'
             }
         },
-        contact_id: {
+        conversation_id: { 
             type: DataTypes.INTEGER,
             allowNull: false,
             references: {
-                model: 'contacts', // Foreign key to your contacts table
+                model: 'conversations', // Links to the new table
                 key: 'id'
             }
         },

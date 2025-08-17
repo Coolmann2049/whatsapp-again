@@ -45,9 +45,8 @@ async function restoreAllSessions() {
     }
 }
 
-// --- THE FIX: STORE INTENTIONAL LOGOUTS ---
 const intentionalLogouts = new Set();
-
+const reconnectingClients = new Set(); 
 
 function initializeClient(clientId) {
     // This Promise wrapper makes the function "thenable" and provides resolve/reject
@@ -68,7 +67,7 @@ function initializeClient(clientId) {
             const initTimeout = setTimeout(() => {
                 console.error(`[${clientId}] Initialization timed out after 90 seconds.`);
                 client.destroy(); 
-                delete activeClients[clientId]; // <-- FIX: Clean up on timeout
+                delete activeClients[clientId]; 
 
                 reject(new Error(`Initialization timed out for ${clientId}`));
             }, 90000);
@@ -84,7 +83,7 @@ function initializeClient(clientId) {
                 console.log(`[${clientId}] Client is ready!`);
                 clearTimeout(initTimeout); 
 
-                // Safely store client info now that it's available
+                
                 clientInfo = {
                     name: client.info.pushname,
                     phone: client.info.wid.user
@@ -98,31 +97,17 @@ function initializeClient(clientId) {
                     userPhone: clientInfo.phone,
                     auth: process.env.VPS_KEY
                 });
-                resolve(); // Signal that the promise succeeded
+                resolve(); 
             });
 
             client.on('disconnected', (reason) => {
+                const clientId = client.id; 
                 console.log(`[${clientId}] Client was logged out. Reason:`, reason);
                 
-                // --- THE FIX: CHECK THE FLAG ---
                 if (intentionalLogouts.has(clientId)) {
-                    // This was an intentional logout triggered by our API.
-                    console.log(`[${clientId}] Intentional logout confirmed. Not attempting to reconnect.`);
-                    // Clean up the flag
+                    // This was an intentional logout.
+                    console.log(`[${clientId}] Intentional logout confirmed. Not reconnecting.`);
                     intentionalLogouts.delete(clientId);
-                    // Send the final status update
-                    axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
-                        clientId, 
-                        status: 'disconnected',
-                        auth: process.env.VPS_KEY,
-                        userLogout: true
-                    });
-                    delete activeClients[clientId];
-
-                } else {
-                    // This was an unexpected disconnect. Proceed with self-healing.
-                    console.log(`[${clientId}] Unexpected disconnect. Attempting to reconnect in 1 minute...`);
-                    
                     axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
                         clientId, 
                         status: 'disconnected',
@@ -130,12 +115,43 @@ function initializeClient(clientId) {
                     });
                     delete activeClients[clientId];
 
+                } else {
+                    // This was an unexpected disconnect.
+                    console.log(`[${clientId}] Unexpected disconnect. Attempting to self-heal.`);
+                    
+                    axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
+                        clientId, 
+                        status: 'reconnecting', // You can use this to show a temp status in the UI
+                        auth: process.env.VPS_KEY
+                    });
+                    delete activeClients[clientId];
+
+                    // 1. Set the flag BEFORE attempting to reconnect.
+                    reconnectingClients.add(clientId);
+
                     setTimeout(() => {
                         console.log(`[${clientId}] Re-initializing after disconnect...`);
-                        initializeClient(clientId);
+                        
+                        initializeClient(clientId)
+                            .catch(reconnectError => {
+
+                                console.log(reconnectError);
+                                // 2. Check the flag on failure.
+                                if (reconnectingClients.has(clientId)) {
+                                    console.error(`[${clientId}] Automatic reconnect FAILED. Notifying user.`);
+                                    
+                                    // 3. Send the final "disconnected" status.
+                                    axios.post(`${MAIN_BACKEND_URL}/api/webhook/whatsapp-status-update`, { 
+                                        clientId, 
+                                        status: 'disconnected',
+                                        auth: process.env.VPS_KEY
+                                    });
+                                    // Clean up the flag
+                                    reconnectingClients.delete(clientId);
+                                }
+                            });
                     }, 60000);
                 }
-                // --- END OF FIX ---
             });
 
 

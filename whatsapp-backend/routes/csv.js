@@ -59,50 +59,51 @@ const upload = multer({
         cb(null, true);
     }
 });
-
+// GET: Get all non-archived upload history records
 router.get('/upload-history', async (req, res) => {
     try {
         const uploadHistory = await UploadHistory.findAll({
             where: {
-                userId: req.session.userId
+                userId: req.session.userId,
+                is_archived: false // <-- THE CHANGE
             },
             order: [['createdAt', 'DESC']]
         });
-
-
         res.json(uploadHistory);
     } catch (error) {
-        console.error('Error fetching contacts:', error);
+        console.error('Error fetching upload history:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
+// DELETE: Soft delete (archive) an upload history record
 router.delete('/upload-history/:id', async (req, res) => {
     try {
         const historyId = req.params.id;
         const userId = req.session.userId;
 
-        // The only query we need to run. The database handles the rest.
-        const result = await UploadHistory.destroy({
-            where: {
-                id: historyId,
-                userId: userId // Ensures users can only delete their own files
+        // Instead of destroying, we update the is_archived flag to true
+        const [updateCount] = await UploadHistory.update(
+            { is_archived: true }, 
+            {
+                where: {
+                    id: historyId,
+                    userId: userId
+                }
             }
-        });
+        );
 
-        if (result === 0) {
-            return res.status(404).json({ error: 'Upload record not found or you do not have permission to delete it.' });
+        if (updateCount === 0) {
+            return res.status(404).json({ error: 'Upload record not found.' });
         }
 
-        // 204 No Content is the standard, correct response for a successful delete.
-        res.status(204).send();
+        res.status(204).json({ message: 'Upload record deleted successfully.' });
 
     } catch (error) {
-        console.error('Error deleting upload history:', error);
-        res.status(500).json({ error: 'Failed to delete upload history and associated contacts.' });
+        console.error('Error archiving upload history:', error);
+        res.status(500).json({ error: 'Failed to delete upload history.' });
     }
 });
-
 
 router.post('/upload-contacts', upload.single('csvFile'), async (req, res) => {
     if (!req.file) {
@@ -132,24 +133,23 @@ router.post('/upload-contacts', upload.single('csvFile'), async (req, res) => {
                         cleanRow[cleanKey] = row[key] ? row[key].trim() : '';
                     });
                     
-                    // --- SANITIZATION LOGIC ---
                     const rawPhone = cleanRow.phone;
-                    const sanitizedPhone = sanitizePhoneNumber(rawPhone); // Sanitize the number
+                    const sanitizedPhone = sanitizePhoneNumber(rawPhone);
 
-                    if (sanitizedPhone) { // Check if the sanitized number is valid
+                    if (sanitizedPhone) {
                         contacts.push({
                             name: cleanRow.name || '',
-                            phone: sanitizedPhone, // Use the sanitized number
+                            phone: sanitizedPhone,
                             email: cleanRow.email || '',
                             company: cleanRow.company || '',
                             userId: req.session.userId,
-                            uploadHistoryId: uploadHistoryId
+                            uploadHistoryId: uploadHistoryId,
+                            is_deleted: false // <-- Set is_deleted to false for all uploaded contacts
                         });
                     } else {
                         console.log(`Row skipped - invalid phone number found: ${rawPhone}`);
                         errorCount++;
                     }
-                    // --- END OF SANITIZATION LOGIC ---
                 })
                 .on('end', resolve)
                 .on('error', reject);
@@ -162,8 +162,9 @@ router.post('/upload-contacts', upload.single('csvFile'), async (req, res) => {
             });
         }
 
+        // The updateOnDuplicate array now includes is_deleted
         await Contact.bulkCreate(contacts, {
-            updateOnDuplicate: ["name", "email", "company"]
+            updateOnDuplicate: ["name", "email", "company", "is_deleted"] // <-- THE FIX
         });
 
         await historyRecord.update({

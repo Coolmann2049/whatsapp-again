@@ -116,21 +116,17 @@
                         <div id="chat-view-container" class="d-none h-100 d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
                                 <h5 id="chat-header-name" class="mb-0"></h5>
-                                <button class="btn btn-sm" id="manual-mode-toggle-btn" disabled>
-                                    <!-- Button content will be set by JS -->
+                                <button class="btn btn-sm" id="manual-mode-toggle-btn" disabled 
+                                    data-bs-toggle="tooltip" data-bs-placement="bottom" 
+                                    title="When Manual Mode is on, the AI will not respond, and new messages will not be tracked in this log.">
+                                <!-- Button content will be set by JS -->
+
                                 </button>
                             </div>
                             <div class="flex-grow-1 overflow-auto p-3" id="messages-container">
                                 <!-- Messages will be rendered here -->
                             </div>
-                            <div class="p-3 border-top bg-light">
-                                <div class="input-group">
-                                    <input type="text" id="message-input" class="form-control" placeholder="Type a message to send manually..." disabled>
-                                    <button class="btn btn-primary" type="button" id="send-btn" disabled>
-                                        <i class="bi bi-send-fill"></i>
-                                    </button>
-                                </div>
-                            </div>
+                            
                         </div>
                     </div>
                 </div>

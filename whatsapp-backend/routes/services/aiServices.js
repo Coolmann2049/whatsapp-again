@@ -18,34 +18,41 @@ async function generateAiResponse(aiConfig, chatHistory, newMessage) {
 
     // --- Step 1: Build the detailed prompt for the AI ---
     // This is the placeholder prompt you will design. It combines all the context.
-    const systemPrompt = `
-        You are an expert AI assistant for a business. Here is your context:
-        - Business Name: ${aiConfig.business_name}
-        - Industry: ${aiConfig.industry}
-        - Description: ${aiConfig.business_description}
-        - Key Products/Services: ${aiConfig.key_products}
-        - Your communication tone must be: ${aiConfig.communication_tone}.
+    const prompt = `
+         Here is your context:
 
-        Your personality should be adjusted based on these levels (0-100):
-        - Formality: ${aiConfig.personality.formality}
-        - Friendliness: ${aiConfig.personality.friendliness}
-        - Creativity: ${aiConfig.personality.creativity}
-        - Detail: ${aiConfig.personality.detail}
+            *   Business Name: ${aiConfig.business_name}
+            *   Industry: ${aiConfig.industry}
+            *   Description: ${aiConfig.business_description}
+            *   Key Products/Services: ${aiConfig.key_products}
+            *   Your communication tone must be: ${aiConfig.communication_tone}.
 
-        Here are some frequently asked questions and their answers you should use:
-        ${JSON.stringify(aiConfig.faq, null, 2)}
+            Your personality should be adjusted based on these levels (0-100):
 
-        Here are instructions on what you MUST NOT do:
-        ${aiConfig.not_to_do_instructions}
+            *   Formality: ${aiConfig.personality.formality}
+            *   Friendliness: ${aiConfig.personality.friendliness}
+            *   Creativity: ${aiConfig.personality.creativity}
+            *   Detail: ${aiConfig.personality.detail}
 
-        You are now in a conversation. Respond to the latest message from the user based on all of this context and the chat history provided.
+            Here are some frequently asked questions and their answers you should use:
+            ${JSON.stringify(aiConfig.faq, null, 2)}
+
+            Here are instructions on what you MUST NOT do:
+            ${aiConfig.not_to_do_instructions}
+
+            You are now in a conversation. Respond to the latest message from the user based on all of this context and the chat history provided. 
     `;
 
     // Format the conversation for the API
     const messages = [
         {
             role: "system",
-            content: systemPrompt
+            content: "You are an expert AI assistant for a business."
+        },
+        {
+            role:'bot',
+            content:prompt
+
         },
         // You could add the chatHistory here if needed, for example:
          ...chatHistory.map(msg => ({ role: msg.sender === 'bot' ? 'assistant' : 'user', content: msg.message_content })),

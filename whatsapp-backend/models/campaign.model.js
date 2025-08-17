@@ -21,7 +21,8 @@ module.exports = (sequelize) => {
             references: {
                 model: 'message_templates',
             },
-            onDelete: 'CASCADE' 
+            onDelete: 'SET NULL', 
+            onUpdate: 'SET NULL'
         },
         userId: {
             type: DataTypes.INTEGER,

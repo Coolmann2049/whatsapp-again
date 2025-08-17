@@ -13,35 +13,40 @@ function initializeSocket(io) {
         if (userSession && userSession.userId) {
 
             const userId = userSession.userId;
-            const email = userSession.email;
-            const sanitizedEmail = email.replace(/[^a-zA-Z0-9_-]/g, '-');
             const user = await UserID.findByPk(userId);
 
-            console.log(`✅ User connected via WebSocket: ${email}`);
+            console.log(`✅ User connected via WebSocket: ${user.email}`);
             
             // Join a room named after the user. This is crucial for sending targeted messages.
-            socket.join(sanitizedEmail);
+            socket.join(userId);
 
             socket.on('disconnect', () => {
-                console.log(`❌ User disconnected: ${email}`);
+                console.log(`❌ User disconnected: ${user.email}`);
             });
 
             // Listen for this user to request a new QR code
-            socket.on('request-new-qr', () => {
-                console.log(`User ${email} is requesting a new QR code.`);
+            socket.on('request-new-qr', async () => {
+                console.log(`User ${user.email} is requesting a new QR code.`);
 
                 if (user.count > 4) {
                     socket.emit('qr-request-error', { message: 'Max device limit of 4 reached' });
                     return;
                 }
-
+                currentUser.device_id_counter += 1;
+        
+                // 2. Save the user to persist the new counter value
+                await currentUser.save();
+                
+                // 3. Use the new counter value as the unique deviceId
+                const newDeviceId = currentUser.device_id_counter;
+                const clientId = `${userId}_${newDeviceId}`;
                 fetch(`${process.env.VPS_URL}/api/initialize-session`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ 
-                        clientId: `${userId}_${sanitizedEmail}_${user.count}`,
+                        clientId,
                         auth: process.env.VPS_KEY,
                     }),
                 })

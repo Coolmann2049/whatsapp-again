@@ -57,6 +57,11 @@ module.exports = (sequelize) => {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW
     },
+    device_id_counter: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
+    },
     reply_mode: {
       type: DataTypes.ENUM('ai', 'keyword', 'off'),
       allowNull: false,
