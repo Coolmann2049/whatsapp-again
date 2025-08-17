@@ -32,13 +32,13 @@ function initializeSocket(io) {
                     socket.emit('qr-request-error', { message: 'Max device limit of 4 reached' });
                     return;
                 }
-                currentUser.device_id_counter += 1;
+                user.device_id_counter += 1;
         
                 // 2. Save the user to persist the new counter value
-                await currentUser.save();
+                await user.save();
                 
                 // 3. Use the new counter value as the unique deviceId
-                const newDeviceId = currentUser.device_id_counter;
+                const newDeviceId = user.device_id_counter;
                 const clientId = `${userId}_${newDeviceId}`;
                 fetch(`${process.env.VPS_URL}/api/initialize-session`, {
                     method: 'POST',
