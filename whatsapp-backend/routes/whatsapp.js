@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { UserID, Campaign } = require('../models');
+const { UserID, Campaign, CampaignContacts } = require('../models');
 const dotenv = require('dotenv');
 
 // Load environment variablFVes
@@ -145,13 +145,13 @@ router.post('/campaigns/:id/start', async (req, res) => {
 
         // Check 2: Is the selected device connected?
         const devices = user && user.devices_data ? JSON.parse(user.devices_data) : [];
-        const selectedDevice = devices.find(d => String(d.clientId) === String(campaign.clientId));
+        const selectedDevice = devices.find(d => String(d.clientId) === String(campaign.client_id));
         if (!selectedDevice || selectedDevice.status !== 'connected') {
             return res.status(400).json({ error: 'The device for this campaign is disconnected. Please reconnect it on the Manage Devices page to start this campaign.' });
         }
 
         // Check 3: Does the campaign have any contacts to send to?
-        const contactCount = await CampaignContact.count({ where: { campaign_id: campaignId } });
+        const contactCount = await CampaignContacts.count({ where: { campaign_id: campaignId } });
         if (contactCount === 0) {
             return res.status(400).json({ error: 'This campaign has no contacts. Please edit the campaign and add a contact list.' });
         }
