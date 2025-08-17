@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- STATE MANAGEMENT ---
     let conversationsState = { list: [], currentPage: 1, totalPages: 1, isLoading: false, searchQuery: '' };
-    let messagesState = { list: [], currentPage: 1, totalPages: 1, isLoading: false, activeContactId: null };
+    // Changed to activeConversationId for clarity
+    let messagesState = { list: [], currentPage: 1, totalPages: 1, isLoading: false, activeConversationId: null };
 
     // --- DOM REFERENCES ---
     const chatListContainer = document.getElementById('chat-list-container');
@@ -21,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     };
 
-    // --- RENDER FUNCTIONS ---
+    // --- RENDER FUNCTIONS (Corrected) ---
     const renderConversations = (append = false) => {
         if (!append) chatListContainer.innerHTML = '';
         
@@ -31,20 +32,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         conversationsState.list.forEach(convo => {
-            const contact = convo.Contact || convo;
-            const activeClass = messagesState.activeContactId === contact.id ? 'active' : '';
-            const manualIcon = contact.is_manual_mode ? '<i class="bi bi-person-fill text-danger me-2" title="Manual Mode"></i>' : '';
-            
-            // FIX: Use a more robust date formatting to prevent "Invalid Date"
-            const lastMessageDate = convo.lastMessageAt ? new Date(convo.lastMessageAt).toLocaleDateString() : 'No date';
+            const activeClass = messagesState.activeConversationId === convo.id ? 'active' : '';
+            const manualIcon = convo.is_manual_mode ? '<i class="bi bi-person-fill text-danger me-2" title="Manual Mode"></i>' : '';
+            const lastMessageDate = convo.updated_at ? new Date(convo.updated_at).toLocaleDateString() : 'No date';
 
             const chatItemHtml = `
-                <a href="#" class="list-group-item list-group-item-action ${activeClass}" data-contact-id="${contact.id}">
+                <a href="#" class="list-group-item list-group-item-action ${activeClass}" data-conversation-id="${convo.id}" data-contact-name="${convo.contact_name}">
                     <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1 text-truncate">${manualIcon}${contact.name}</h6>
+                        <h6 class="mb-1 text-truncate">${manualIcon}${convo.contact_name}</h6>
                         <small class="text-muted">${lastMessageDate}</small>
                     </div>
-                    <p class="mb-1 text-truncate small">${contact.phone}</p>
+                    <p class="mb-1 text-truncate small">${convo.contact_phone}</p>
                 </a>
             `;
             chatListContainer.insertAdjacentHTML('beforeend', chatItemHtml);
@@ -54,9 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderMessages = (prepend = false) => {
         if (!prepend) messagesContainer.innerHTML = '';
         
-        // Messages are fetched newest first, so we reverse for chronological display
         messagesState.list.slice().reverse().forEach(msg => {
-            // FIX: 'bot' sender is OUR message (user-message style), 'user' is the contact's message (bot-message style)
             const messageSide = msg.sender === 'bot' ? 'user-message' : 'bot-message';
             const messageHtml = `
                 <div class="message-container">
@@ -66,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `;
-            // Prepend to add older messages to the top
             messagesContainer.insertAdjacentHTML('afterbegin', messageHtml);
         });
     };
@@ -104,14 +99,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const fetchMessages = async (contactId, page = 1) => {
+    const fetchMessages = async (conversationId, page = 1) => {
         if (messagesState.isLoading) return;
         messagesState.isLoading = true;
         
         if (page === 1) messagesContainer.innerHTML = `<div class="spinner-container"><div class="spinner-border text-primary"></div></div>`;
 
         try {
-            const response = await fetch(`/api/chat/chat-history/${contactId}?page=${page}&limit=50`);
+            const response = await fetch(`/api/chat/chat-history/${conversationId}?page=${page}&limit=50`);
             if (!response.ok) throw new Error('Failed to fetch messages');
             const data = await response.json();
 
@@ -128,7 +123,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderMessages(true);
                 messagesContainer.scrollTop = messagesContainer.scrollHeight - oldScrollHeight;
             }
-
             updateManualModeButton(data.is_manual_mode);
         } catch (error) {
             console.error(error);
@@ -138,21 +132,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     const toggleManualMode = async () => {
-        if (!messagesState.activeContactId) return;
+        if (!messagesState.activeConversationId) return;
         manualModeBtn.disabled = true;
         try {
-            const response = await fetch(`/api/chat/conversations/${messagesState.activeContactId}/toggle-manual`, { method: 'PUT' });
+            const response = await fetch(`/api/chat/conversations/${messagesState.activeConversationId}/toggle-manual`, { method: 'PUT' });
             if (!response.ok) throw new Error('Failed to toggle mode');
             const data = await response.json();
             updateManualModeButton(data.is_manual_mode);
         } catch (error) {
             console.error(error);
             alert('Could not change mode. Please try again.');
-            manualModeBtn.disabled = false; // Re-enable on error
+            manualModeBtn.disabled = false;
         }
     };
 
-    // --- EVENT HANDLERS ---
+    // --- EVENT HANDLERS (Corrected) ---
     const handleSearch = debounce(() => {
         conversationsState.searchQuery = searchInput.value;
         fetchConversations(1, conversationsState.searchQuery);
@@ -163,19 +157,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const chatItem = e.target.closest('.list-group-item');
         if (!chatItem || messagesState.isLoading) return;
 
-        const contactId = parseInt(chatItem.dataset.contactId);
-        if (messagesState.activeContactId === contactId) return;
+        const conversationId = parseInt(chatItem.dataset.conversationId);
+        if (messagesState.activeConversationId === conversationId) return;
 
-        messagesState = { list: [], currentPage: 1, totalPages: 1, isLoading: false, activeContactId: contactId };
+        messagesState = { list: [], currentPage: 1, totalPages: 1, isLoading: false, activeConversationId: conversationId };
         
         document.querySelectorAll('#chat-list-container .list-group-item').forEach(el => el.classList.remove('active'));
         chatItem.classList.add('active');
         
         welcomeMessage.classList.add('d-none');
         chatViewContainer.classList.remove('d-none');
-        chatHeaderName.textContent = chatItem.querySelector('h6').textContent;
+        chatHeaderName.textContent = chatItem.dataset.contactName;
         
-        fetchMessages(contactId, 1);
+        fetchMessages(conversationId, 1);
     };
 
     chatListContainer.addEventListener('scroll', () => {
@@ -187,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     messagesContainer.addEventListener('scroll', () => {
         if (messagesContainer.scrollTop === 0 && !messagesState.isLoading && messagesState.currentPage < messagesState.totalPages) {
-            fetchMessages(messagesState.activeContactId, messagesState.currentPage + 1);
+            fetchMessages(messagesState.activeConversationId, messagesState.currentPage + 1);
         }
     });
 
@@ -197,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
     manualModeBtn.addEventListener('click', toggleManualMode);
     
     // --- INITIALIZATION ---
-    // Initialize Bootstrap Tooltips for the warning on the manual mode button
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);

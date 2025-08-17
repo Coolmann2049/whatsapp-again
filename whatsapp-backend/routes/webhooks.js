@@ -360,7 +360,19 @@ router.post('/process-incoming-message', async (req, res) => {
         // --- Step 2: Get the Authoritative Conversation Thread ---
         // Find or create the single conversation record for this person.
         const [conversation] = await Conversation.findOrCreate({
-            where: { userId, contact_phone: contactNumber }
+            where: { 
+                userId, 
+                contact_phone: contactNumber 
+            },
+            // The 'defaults' object provides the values to use ONLY if a new record is being created.
+            // If an existing conversation is found, this object is ignored.
+            defaults: {
+                userId,
+                contact_phone: contactNumber,
+                name: contactRecord.name || '',
+                company: contactRecord.company || '',
+                is_manual_mode: false
+            }
         });
 
         // --- Step 3: The Manual Mode Check ---
@@ -383,7 +395,8 @@ router.post('/process-incoming-message', async (req, res) => {
         await ChatMessage.create({
             conversation_id: conversation.id,
             sender: 'user',
-            message_content: messageBody
+            message_content: messageBody,
+            userId: userId
         });
 
         // --- NEW: Daily Bot Reply Limit Check ---
@@ -401,6 +414,7 @@ router.post('/process-incoming-message', async (req, res) => {
             order: [['sent_at', 'DESC']]
         });
         if (campaignContact) {
+            await ChatMessage.update({ campaign_id: campaignContact.campaign_id }, { where: { conversation_id: conversation.id } })
             await campaignContact.update({ status: 'replied', replied_at: new Date() });
         }
 
@@ -447,7 +461,8 @@ router.post('/process-incoming-message', async (req, res) => {
             await ChatMessage.create({
                 conversation_id: conversation.id,
                 sender: 'bot',
-                message_content: botReply
+                message_content: botReply,
+                userId: userId
             });
 
             // Command the worker to send the message

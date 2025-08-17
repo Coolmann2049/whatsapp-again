@@ -81,7 +81,7 @@ router.get('/chat-history/:contactId', async (req, res) => {
         // Fetch both the messages and the contact's current manual mode status
         const [history, contact] = await Promise.all([
             ChatMessage.findAndCountAll({
-                where: { userId, contact_id: contactId },
+                where: { userId, conversation_id: contactId },
                 order: [['timestamp', 'DESC']], // Get newest messages first for each page
                 limit,
                 offset
@@ -138,4 +138,4 @@ router.put('/conversations/:contactId/toggle-manual', async (req, res) => {
 });
 
 
-module.exports = router;``
+module.exports = router;

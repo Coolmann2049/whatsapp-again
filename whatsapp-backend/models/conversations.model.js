@@ -20,9 +20,18 @@ module.exports = (sequelize) => {
                 key: 'userId'
             }
         },
+        name: {
+            type: DataTypes.STRING(255),
+            allowNull: true,
+            defaultValue: ''
+        },
         contact_phone: {
             type: DataTypes.STRING,
             allowNull: false
+        },
+        company: {
+            type: DataTypes.STRING(255),
+            defaultValue: ''
         },
         is_manual_mode: {
             type: DataTypes.BOOLEAN,
