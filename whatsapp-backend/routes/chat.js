@@ -25,7 +25,7 @@ router.get('/conversations', async (req, res) => {
                 // Search the phone number directly on the conversation table.
                 contact_phone: { [Op.like]: `%${searchQuery}%` }
             },
-            order: [['updatedAt', 'DESC']] // Order by the most recent interaction.
+            order: [['updated_at', 'DESC']] // Order by the most recent interaction.
         });
 
         // To get the most recent contact name for display, we do a second, efficient query.
@@ -39,7 +39,7 @@ router.get('/conversations', async (req, res) => {
                     phone: contactPhones
                 },
                 // Get the most recent record for each phone number.
-                order: [['createdAt', 'DESC']],
+                order: [['created_at', 'DESC']],
             });
             // Create a map so we only get the latest name for each phone number.
             contacts.forEach(c => {
