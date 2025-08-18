@@ -197,7 +197,6 @@ async function sendTestMessage(client, number, message) {
     try {
         // Format the number to the correct WhatsApp ID format
         const chatId = `${number}@c.us`;
-        
         // Send the message
         const sentMessage = await client.sendMessage(chatId, message);
         console.log(`[${client.info.wid}] Successfully sent test message to ${number}`);
@@ -210,7 +209,6 @@ async function sendTestMessage(client, number, message) {
         throw new Error('Failed to send message. The number might be invalid or not on WhatsApp.');
     }
 }
-
 
 async function resumeRunningCampaigns() {
     console.log('Checking for running campaigns to resume...');

@@ -464,12 +464,19 @@ router.post('/process-incoming-message', async (req, res) => {
                 userId: userId
             });
 
+            console.log( contactNumber, botReply, clientId);
             // Command the worker to send the message
             await fetch(`${process.env.VPS_URL}/api/send-message`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'                },
-                body: JSON.stringify({ clientId, number: contactNumber, message: botReply, auth: process.env.VPS_AUTH })
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    number: contactNumber, // <-- Use the sanitized number
+                    message: botReply,
+                    clientId: clientId,
+                    auth: process.env.VPS_KEY,
+                }),
             });
         }
 

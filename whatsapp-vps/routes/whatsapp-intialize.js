@@ -88,7 +88,6 @@ router.post('/send-message', async (req, res) => {
     if (!clientId || !number || !message) {
         return res.status(400).json({ message: 'clientId, number, and message are required.' });
     }
-
     // 2. Find the active client instance
     const client = activeClients[clientId];
     if (!client) {
