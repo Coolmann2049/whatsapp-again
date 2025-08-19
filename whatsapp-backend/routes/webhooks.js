@@ -233,6 +233,19 @@ router.get('/next-contact/:campaignId', async (req, res) => {
 
             // No more pending contacts
             await campaign.update({ status: 'Completed' });
+            
+            // Send email notification to user about campaign completion
+            const subject = `Campaign "${campaign.name}" Completed Successfully`;
+            const htmlBody = `
+                <p>Hello ${user.name},</p>
+                <p>Great news! Your campaign "<b>${campaign.name}</b>" has been completed successfully.</p>
+                <p>All contacts in this campaign have been processed. You can now start a new campaign from your dashboard.</p>
+                <p>Thank you for using our platform!</p>
+                <p>Best regards,<br>The Blulink Team</p>
+            `;
+            // Send email notification (non-blocking)
+            sendEmail(user.email, subject, htmlBody);
+            
             return res.json(null); // Signal to the worker that the campaign is done
         }
         if (campaign.status !== 'Running') {
@@ -464,7 +477,6 @@ router.post('/process-incoming-message', async (req, res) => {
                 userId: userId
             });
 
-            console.log( contactNumber, botReply, clientId);
             // Command the worker to send the message
             await fetch(`${process.env.VPS_URL}/api/send-message`, {
                 method: 'POST',

@@ -1,4 +1,9 @@
 // services/aiService.js
+const dotenv = require('dotenv');
+dotenv.config();
+
+const nodemailer = require('nodemailer');
+const sgTransport = require('nodemailer-sendgrid');
 
 /**
  * Generates a response from the DeepSeek AI based on the user's configuration and chat context.
@@ -98,11 +103,30 @@ async function generateAiResponse(aiConfig, chatHistory, newMessage) {
     }
 }
 
-function sendEmail(email, subject, htmlBody) {
+const transporter = nodemailer.createTransport(sgTransport({
+  apiKey: process.env.SENDGRID_API_KEY
+}));
+
+async function sendEmail(email, subject, htmlBody) {
     // Use your email service here (e.g., Nodemailer)
     // Make sure to handle errors and edge cases
 
     console.log('Sending a fucking email');
+    try {
+        const mailOptions = {
+            from: 'whatsapp@coolmann2049.xyz', // MUST be a verified sender
+            to: email,
+            subject: subject,
+            html: htmlBody
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Message sent:', info);
+        return info;
+    } catch (error) {
+        console.error('Error sending email:', error);
+    }
+    
 }
 
 module.exports = { generateAiResponse , sendEmail};

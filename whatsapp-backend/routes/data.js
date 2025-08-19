@@ -1,12 +1,63 @@
 const express = require('express');
 const router = express.Router();
 const dotenv = require('dotenv');
+const argon2 = require('argon2');
 const { Campaign, Contact, MessageTemplate, DialogFlows , UserAnalytics, AiConfiguration, UserID, UploadHistory, CampaignContacts} = require('../models'); // Adjust the path as needed
 const { generateAiResponse } = require('./services/aiServices');
 
 
 // Load environment variables
 dotenv.config();
+
+// Create new user account
+router.post('/create-account', async (req, res) => {
+    try {
+        const { name, email, password, phone_number, company } = req.body;
+
+        // Validate required fields
+        if (!name || !email || !password || !phone_number || !company) {
+            return res.status(400).json({ error: 'All fields are required' });
+        }
+
+        // Hash the password using argon2
+        const hashedPassword = await argon2.hash(password);
+
+        // Upsert user in UserID table
+        const [user, created] = await UserID.upsert({
+            email,
+            name,
+            phone_number,
+            company,
+            hashed_password: hashedPassword
+        }, {
+            returning: true,
+            conflictFields: ['email'] // Use email as the conflict field for upsert
+        });
+
+        if (created) {
+            res.status(201).json({ 
+                success: true, 
+                message: 'Account created successfully',
+                userId: user.userId 
+            });
+        } else {
+            res.status(200).json({ 
+                success: true, 
+                message: 'Account updated successfully',
+                userId: user.userId 
+            });
+        }
+    } catch (error) {
+        console.error('Error creating/updating account:', error);
+        
+        // Handle unique constraint violation for email
+        if (error.name === 'SequelizeUniqueConstraintError') {
+            return res.status(409).json({ error: 'Email already exists' });
+        }
+        
+        res.status(500).json({ error: 'Failed to create account' });
+    }
+});
 
 // --- Campaign API Endpoints ---
 
