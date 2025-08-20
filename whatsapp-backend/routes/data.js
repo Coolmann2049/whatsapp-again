@@ -785,14 +785,12 @@ function sanitizePhoneNumber(rawPhoneNumber) {
 // GET: Fetch WhatsApp groups from worker VPS for a specific device
 router.get('/groups/:deviceId', async (req, res) => {
     try {
-        const { deviceId } = req.params;
+        const { clientId } = req.params;
         const { userId } = req.session;
 
         if (!userId || !deviceId) {
             return res.status(400).json({ message: 'User ID and Device ID are required.' });
         }
-
-        const clientId = `${userId}_${deviceId}`;
 
         // Call worker VPS to get groups
         const response = await fetch(`${process.env.VPS_URL}/api/get-groups`, {
