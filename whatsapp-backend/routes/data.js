@@ -830,7 +830,7 @@ router.post('/import-group-contacts', async (req, res) => {
         let groupNames = [];
 
         // Fetch contacts from each selected group
-        for (const groupId of groupIds) {
+        for (const groupId of groups) {
             const response = await fetch(`${process.env.VPS_URL}/api/get-group-contacts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
