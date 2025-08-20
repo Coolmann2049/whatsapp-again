@@ -819,10 +819,10 @@ router.get('/groups/:clientId', async (req, res) => {
 // POST: Import contacts from selected WhatsApp groups
 router.post('/import-group-contacts', async (req, res) => {
     try {
-        const { clientId, groupIds } = req.body;
+        const { clientId, groups } = req.body;
         const { userId } = req.session;
 
-        if (!userId || !clientId || !groupIds || !Array.isArray(groupIds)) {
+        if (!userId || !clientId || !groups || !Array.isArray(groups)) {
             return res.status(400).json({ message: 'User ID, Device ID, and Group IDs are required.' });
         }
 
