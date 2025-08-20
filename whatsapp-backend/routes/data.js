@@ -783,7 +783,7 @@ function sanitizePhoneNumber(rawPhoneNumber) {
 }
 
 // GET: Fetch WhatsApp groups from worker VPS for a specific device
-router.get('/groups/:deviceId', async (req, res) => {
+router.get('/groups/:clientId', async (req, res) => {
     try {
         const { clientId } = req.params;
         const { userId } = req.session;
