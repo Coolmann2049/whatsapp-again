@@ -782,5 +782,131 @@ function sanitizePhoneNumber(rawPhoneNumber) {
     return null;
 }
 
+// GET: Fetch WhatsApp groups from worker VPS for a specific device
+router.get('/groups/:deviceId', async (req, res) => {
+    try {
+        const { deviceId } = req.params;
+        const { userId } = req.session;
+
+        if (!userId || !deviceId) {
+            return res.status(400).json({ message: 'User ID and Device ID are required.' });
+        }
+
+        const clientId = `${userId}_${deviceId}`;
+
+        // Call worker VPS to get groups
+        const response = await fetch(`${process.env.VPS_URL}/api/get-groups`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clientId: clientId,
+                auth: process.env.VPS_KEY
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Worker VPS failed to fetch groups: ${errorText}`);
+        }
+
+        const groupsData = await response.json();
+        res.json(groupsData);
+
+    } catch (error) {
+        console.error('Error fetching groups:', error);
+        res.status(500).json({ error: 'Failed to fetch groups from WhatsApp' });
+    }
+});
+
+// POST: Import contacts from selected WhatsApp groups
+router.post('/import-group-contacts', async (req, res) => {
+    try {
+        const { deviceId, groupIds } = req.body;
+        const { userId } = req.session;
+
+        if (!userId || !deviceId || !groupIds || !Array.isArray(groupIds)) {
+            return res.status(400).json({ message: 'User ID, Device ID, and Group IDs are required.' });
+        }
+
+        const clientId = `${userId}_${deviceId}`;
+        let allContacts = [];
+        let groupNames = [];
+
+        // Fetch contacts from each selected group
+        for (const groupId of groupIds) {
+            const response = await fetch(`${process.env.VPS_URL}/api/get-group-contacts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clientId: clientId,
+                    groupId: groupId,
+                    auth: process.env.VPS_KEY
+                })
+            });
+
+            if (!response.ok) {
+                console.error(`Failed to fetch contacts for group ${groupId}`);
+                continue;
+            }
+
+            const groupData = await response.json();
+            if (groupData.contacts && groupData.contacts.length > 0) {
+                allContacts = allContacts.concat(groupData.contacts);
+                groupNames.push(groupData.groupName || `Group ${groupId}`);
+            }
+        }
+
+        if (allContacts.length === 0) {
+            return res.status(400).json({ message: 'No contacts found in selected groups.' });
+        }
+
+        // Create upload history record
+        const historyRecord = await UploadHistory.create({
+            file_name: `WhatsApp Groups: ${groupNames.join(', ')}`,
+            status: 'Processing',
+            userId: userId
+        });
+
+        // Prepare contacts for database insertion
+        const contactsToInsert = allContacts.map(contact => ({
+            name: contact.name || contact.pushname || '',
+            phone: contact.phone,
+            email: '',
+            company: '',
+            userId: userId,
+            uploadHistoryId: historyRecord.id,
+            is_deleted: false
+        }));
+
+        // Remove duplicates based on phone number
+        const uniqueContacts = contactsToInsert.filter((contact, index, self) => 
+            index === self.findIndex(c => c.phone === contact.phone)
+        );
+
+        // Bulk insert contacts
+        await Contact.bulkCreate(uniqueContacts, {
+            updateOnDuplicate: ["name", "email", "company", "is_deleted"]
+        });
+
+        // Update history record
+        await historyRecord.update({
+            status: 'Completed',
+            total_contacts: uniqueContacts.length
+        });
+
+        res.json({
+            success: true,
+            message: `Successfully imported ${uniqueContacts.length} contacts from ${groupNames.length} groups.`,
+            contactsProcessed: uniqueContacts.length,
+            groupsProcessed: groupNames.length,
+            historyRecord: historyRecord.toJSON()
+        });
+
+    } catch (error) {
+        console.error('Error importing group contacts:', error);
+        res.status(500).json({ error: 'Failed to import contacts from groups' });
+    }
+});
+
 module.exports = router;
 

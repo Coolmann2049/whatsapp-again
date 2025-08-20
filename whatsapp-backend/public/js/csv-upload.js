@@ -2,6 +2,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- STATE & DATA ---
     let uploadHistory = [];
     let manualContacts = [];
+    let availableDevices = [];
+    let availableGroups = [];
+    let selectedDeviceId = null;
 
     // --- DOM REFERENCES ---
     const fileListBody = document.getElementById('file-list-body');
@@ -14,6 +17,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const manualPhoneInput = document.getElementById('manual-phone');
     const manualNameInput = document.getElementById('manual-name');
     const manualCompanyInput = document.getElementById('manual-company');
+    
+    // Group Import DOM refs
+    const groupImportModal = document.getElementById('groupImportModal');
+    const deviceSelectionStep = document.getElementById('device-selection-step');
+    const groupSelectionStep = document.getElementById('group-selection-step');
+    const importProgressStep = document.getElementById('import-progress-step');
+    const deviceList = document.getElementById('device-list');
+    const groupList = document.getElementById('group-list');
+    const deviceLoading = document.getElementById('device-loading');
+    const groupLoading = document.getElementById('group-loading');
+    const backToDevicesBtn = document.getElementById('back-to-devices');
+    const importSelectedGroupsBtn = document.getElementById('import-selected-groups');
+    const selectAllGroupsBtn = document.getElementById('select-all-groups');
+    const deselectAllGroupsBtn = document.getElementById('deselect-all-groups');
+    const importProgressBar = document.getElementById('import-progress-bar');
+    const importStatus = document.getElementById('import-status');
 
     // --- HELPER FUNCTIONS ---
     const getStatusBadge = (status) => {
@@ -189,6 +208,119 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- GROUP IMPORT FUNCTIONS ---
+    const fetchUserDevices = async () => {
+        try {
+            const response = await fetch('/api/user/devices');
+            if (!response.ok) throw new Error('Failed to fetch devices');
+            const data = await response.json();
+            availableDevices = data.devices || [];
+            return availableDevices;
+        } catch (error) {
+            console.error('Error fetching devices:', error);
+            throw error;
+        }
+    };
+
+    const fetchGroupsForDevice = async (deviceId) => {
+        try {
+            const response = await fetch(`/api/data/groups/${deviceId}`);
+            if (!response.ok) throw new Error('Failed to fetch groups');
+            const data = await response.json();
+            availableGroups = data.groups || [];
+            return availableGroups;
+        } catch (error) {
+            console.error('Error fetching groups:', error);
+            throw error;
+        }
+    };
+
+    const importGroupContacts = async (selectedGroups) => {
+        try {
+            const response = await fetch('/api/data/import-group-contacts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    deviceId: selectedDeviceId,
+                    groups: selectedGroups
+                })
+            });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Import failed');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Error importing contacts:', error);
+            throw error;
+        }
+    };
+
+    const renderDeviceList = (devices) => {
+        deviceList.innerHTML = '';
+        if (devices.length === 0) {
+            deviceList.innerHTML = '<div class="text-center text-muted py-4">No connected devices found. Please connect a device first.</div>';
+            return;
+        }
+        devices.forEach(device => {
+            const deviceHtml = `
+                <div class="list-group-item list-group-item-action device-item" data-device-id="${device.clientId}">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">${device.name || 'Unnamed Device'}</h6>
+                            <p class="mb-1 text-muted small">Client ID: ${device.clientId}</p>
+                            <small class="text-success"><i class="bi bi-check-circle-fill"></i> Connected</small>
+                        </div>
+                        <i class="bi bi-chevron-right"></i>
+                    </div>
+                </div>
+            `;
+            deviceList.insertAdjacentHTML('beforeend', deviceHtml);
+        });
+    };
+
+    const renderGroupList = (groups) => {
+        groupList.innerHTML = '';
+        if (groups.length === 0) {
+            groupList.innerHTML = '<div class="text-center text-muted py-4">No groups found for this device.</div>';
+            return;
+        }
+        groups.forEach(group => {
+            const groupHtml = `
+                <div class="list-group-item">
+                    <div class="form-check">
+                        <input class="form-check-input group-checkbox" type="checkbox" value="${group.id}" id="group-${group.id}">
+                        <label class="form-check-label w-100" for="group-${group.id}">
+                            <div class="d-flex w-100 justify-content-between">
+                                <div>
+                                    <h6 class="mb-1">${group.name}</h6>
+                                    <p class="mb-1 text-muted small">${group.participants || 0} participants</p>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            `;
+            groupList.insertAdjacentHTML('beforeend', groupHtml);
+        });
+    };
+
+    const showStep = (stepElement) => {
+        [deviceSelectionStep, groupSelectionStep, importProgressStep].forEach(step => {
+            step.style.display = 'none';
+        });
+        stepElement.style.display = 'block';
+        
+        // Update modal footer buttons
+        backToDevicesBtn.style.display = stepElement === groupSelectionStep ? 'inline-block' : 'none';
+        importSelectedGroupsBtn.style.display = stepElement === groupSelectionStep ? 'inline-block' : 'none';
+    };
+
+    const updateImportButtonState = () => {
+        const selectedGroups = document.querySelectorAll('.group-checkbox:checked');
+        importSelectedGroupsBtn.disabled = selectedGroups.length === 0;
+    };
+
     // --- EVENT HANDLERS ---
     const handleFileSelect = (uploadedFile) => {
         if (!uploadedFile) return;
@@ -228,6 +360,108 @@ document.addEventListener('DOMContentLoaded', () => {
         const deleteBtn = e.target.closest('.btn-delete-contact');
         if (deleteBtn) {
             deleteManualContact(parseInt(deleteBtn.dataset.id));
+        }
+    });
+
+    // --- GROUP IMPORT EVENT LISTENERS ---
+    groupImportModal.addEventListener('show.bs.modal', async () => {
+        showStep(deviceSelectionStep);
+        deviceLoading.style.display = 'block';
+        try {
+            const devices = await fetchUserDevices();
+            renderDeviceList(devices);
+        } catch (error) {
+            deviceList.innerHTML = '<div class="text-center text-danger py-4">Error loading devices. Please try again.</div>';
+        } finally {
+            deviceLoading.style.display = 'none';
+        }
+    });
+
+    deviceList.addEventListener('click', async (e) => {
+        const deviceItem = e.target.closest('.device-item');
+        if (!deviceItem) return;
+        
+        selectedDeviceId = deviceItem.dataset.deviceId;
+        showStep(groupSelectionStep);
+        groupLoading.style.display = 'block';
+        
+        try {
+            const groups = await fetchGroupsForDevice(selectedDeviceId);
+            renderGroupList(groups);
+        } catch (error) {
+            groupList.innerHTML = '<div class="text-center text-danger py-4">Error loading groups. Please try again.</div>';
+        } finally {
+            groupLoading.style.display = 'none';
+        }
+    });
+
+    groupList.addEventListener('change', (e) => {
+        if (e.target.classList.contains('group-checkbox')) {
+            updateImportButtonState();
+        }
+    });
+
+    selectAllGroupsBtn.addEventListener('click', () => {
+        document.querySelectorAll('.group-checkbox').forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        updateImportButtonState();
+    });
+
+    deselectAllGroupsBtn.addEventListener('click', () => {
+        document.querySelectorAll('.group-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        updateImportButtonState();
+    });
+
+    backToDevicesBtn.addEventListener('click', () => {
+        showStep(deviceSelectionStep);
+    });
+
+    importSelectedGroupsBtn.addEventListener('click', async () => {
+        const selectedGroups = Array.from(document.querySelectorAll('.group-checkbox:checked'))
+            .map(checkbox => {
+                const groupId = checkbox.value;
+                const group = availableGroups.find(g => g.id === groupId);
+                return { id: groupId, name: group ? group.name : 'Unknown Group' };
+            });
+        
+        if (selectedGroups.length === 0) return;
+        
+        showStep(importProgressStep);
+        importProgressBar.style.width = '0%';
+        
+        try {
+            // Simulate progress
+            importProgressBar.style.width = '30%';
+            
+            const result = await importGroupContacts(selectedGroups);
+            
+            importProgressBar.style.width = '100%';
+            importStatus.innerHTML = `
+                <div class="text-success">
+                    <i class="bi bi-check-circle-fill fs-1"></i>
+                    <p class="mt-2 mb-0">Successfully imported ${result.totalContacts} contacts from ${selectedGroups.length} group(s)!</p>
+                </div>
+            `;
+            
+            // Refresh upload history to show new imports
+            setTimeout(async () => {
+                await fetchInitialData();
+                bootstrap.Modal.getInstance(groupImportModal).hide();
+            }, 2000);
+            
+        } catch (error) {
+            importProgressBar.style.width = '100%';
+            importProgressBar.classList.add('bg-danger');
+            importStatus.innerHTML = `
+                <div class="text-danger">
+                    <i class="bi bi-exclamation-circle-fill fs-1"></i>
+                    <p class="mt-2 mb-0">Import failed: ${error.message}</p>
+                    <button class="btn btn-outline-primary btn-sm mt-2" onclick="location.reload()">Try Again</button>
+                </div>
+            `;
         }
     });
 

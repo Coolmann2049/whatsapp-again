@@ -106,6 +106,17 @@
                     </div>
                 </div>
 
+                <!-- Import from Group Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header"><h5 class="mb-0">Import from WhatsApp Groups</h5></div>
+                    <div class="card-body p-4">
+                        <p class="text-muted mb-3">Import contacts from WhatsApp groups you're a member of</p>
+                        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#groupImportModal">
+                            <i class="bi bi-people-fill me-2"></i>Import from Group
+                        </button>
+                    </div>
+                </div>
+
                 <!-- NEW: Manually Add Contact Card -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-header"><h5 class="mb-0">Manually Add Contact</h5></div>
@@ -180,7 +191,77 @@
         </main>
     </div>
 
-    <!-- Modals remain the same -->
+    <!-- Group Import Modal -->
+    <div class="modal fade" id="groupImportModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Import Contacts from WhatsApp Groups</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Step 1: Device Selection -->
+                    <div id="device-selection-step" class="step-content">
+                        <h6 class="mb-3">Step 1: Select Device</h6>
+                        <p class="text-muted mb-3">Choose a connected WhatsApp device to import groups from:</p>
+                        <div id="device-list" class="list-group">
+                            <!-- Devices will be loaded here -->
+                        </div>
+                        <div class="text-center mt-3" id="device-loading" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading devices...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Group Selection -->
+                    <div id="group-selection-step" class="step-content" style="display: none;">
+                        <h6 class="mb-3">Step 2: Select Groups</h6>
+                        <p class="text-muted mb-3">Choose the WhatsApp groups to import contacts from:</p>
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="select-all-groups">
+                                <i class="bi bi-check-all"></i> Select All
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm ms-2" id="deselect-all-groups">
+                                <i class="bi bi-x-square"></i> Deselect All
+                            </button>
+                        </div>
+                        <div id="group-list" class="list-group" style="max-height: 300px; overflow-y: auto;">
+                            <!-- Groups will be loaded here -->
+                        </div>
+                        <div class="text-center mt-3" id="group-loading" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading groups...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Import Progress -->
+                    <div id="import-progress-step" class="step-content" style="display: none;">
+                        <h6 class="mb-3">Step 3: Importing Contacts</h6>
+                        <div class="progress mb-3">
+                            <div class="progress-bar" role="progressbar" style="width: 0%" id="import-progress-bar"></div>
+                        </div>
+                        <div id="import-status" class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Importing contacts...</span>
+                            </div>
+                            <p class="mt-2 mb-0">Importing contacts from selected groups...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="back-to-devices" style="display: none;">Back to Devices</button>
+                    <button type="button" class="btn btn-success" id="import-selected-groups" style="display: none;" disabled>
+                        <i class="bi bi-download me-2"></i>Import Contacts
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
     <div class="modal fade" id="helpModal" tabindex="-1">
         <!-- ... modal content ... -->
     </div>

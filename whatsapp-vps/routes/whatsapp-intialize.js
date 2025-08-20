@@ -134,4 +134,108 @@ router.post('/process-campaign', (req, res) => {
         res.status(500).json({ error: 'Failed to start campaign on the worker.' });
     }
 });
+// POST: Get all WhatsApp groups for a client
+router.post('/get-groups', async (req, res) => {
+    try {
+        const { clientId } = req.body;
+        
+        if (!clientId) {
+            return res.status(400).json({ error: 'clientId is required' });
+        }
+
+        const client = activeClients[clientId];
+        if (!client) {
+            return res.status(404).json({ error: 'Client not found or not connected' });
+        }
+
+        // Get all chats and filter for groups
+        const chats = await client.getChats();
+        const groups = chats.filter(chat => chat.isGroup);
+
+        const groupsData = groups.map(group => ({
+            id: group.id._serialized,
+            name: group.name,
+            participantCount: group.participants ? group.participants.length : 0,
+            description: group.description || ''
+        }));
+
+        res.json({
+            success: true,
+            groups: groupsData,
+            totalGroups: groupsData.length
+        });
+
+    } catch (error) {
+        console.error('Error fetching groups:', error);
+        res.status(500).json({ error: 'Failed to fetch WhatsApp groups' });
+    }
+});
+
+// POST: Get contacts from a specific WhatsApp group
+router.post('/get-group-contacts', async (req, res) => {
+    try {
+        const { clientId, groupId } = req.body;
+        
+        if (!clientId || !groupId) {
+            return res.status(400).json({ error: 'clientId and groupId are required' });
+        }
+
+        const client = activeClients[clientId];
+        if (!client) {
+            return res.status(404).json({ error: 'Client not found or not connected' });
+        }
+
+        // Get the specific chat/group
+        const chat = await client.getChatById(groupId);
+        if (!chat || !chat.isGroup) {
+            return res.status(404).json({ error: 'Group not found' });
+        }
+
+        // Get group participants
+        const participants = chat.participants || [];
+        const contacts = [];
+
+        for (const participant of participants) {
+            try {
+                // Get contact info for each participant
+                const contact = await client.getContactById(participant.id._serialized);
+                
+                // Extract phone number (remove @c.us suffix)
+                const phoneNumber = participant.id.user;
+                
+                contacts.push({
+                    phone: phoneNumber,
+                    name: contact.name || contact.pushname || '',
+                    pushname: contact.pushname || '',
+                    isMe: participant.id._serialized === client.info.wid._serialized
+                });
+            } catch (contactError) {
+                console.error(`Error getting contact info for ${participant.id._serialized}:`, contactError);
+                // Still add the contact with minimal info
+                contacts.push({
+                    phone: participant.id.user,
+                    name: '',
+                    pushname: '',
+                    isMe: participant.id._serialized === client.info.wid._serialized
+                });
+            }
+        }
+
+        // Filter out the user's own contact
+        const filteredContacts = contacts.filter(contact => !contact.isMe);
+
+        res.json({
+            success: true,
+            groupName: chat.name,
+            groupId: groupId,
+            contacts: filteredContacts,
+            totalContacts: filteredContacts.length
+        });
+
+    } catch (error) {
+        console.error('Error fetching group contacts:', error);
+        res.status(500).json({ error: 'Failed to fetch group contacts' });
+    }
+});
+
 module.exports = router;
