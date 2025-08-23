@@ -184,6 +184,8 @@ router.post('/get-group-contacts', async (req, res) => {
         if (!client) {
             return res.status(404).json({ error: 'Client not found or not connected' });
         }
+        console.log(groupId);
+        console.log('Type of groupId:', typeof groupId);
 
         // Get the specific chat/group
         const chat = await client.getChatById(groupId);
