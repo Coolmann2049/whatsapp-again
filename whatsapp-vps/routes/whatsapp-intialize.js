@@ -199,9 +199,10 @@ router.post('/get-group-contacts', async (req, res) => {
 
         for (const participant of participants) {
             try {
+                console.log(participant);
                 // Get contact info for each participant
                 const contact = await client.getContactById(participant.id._serialized);
-                
+                console.log(contact);
                 // Extract phone number (remove @c.us suffix)
                 const phoneNumber = participant.id.user;
                 
