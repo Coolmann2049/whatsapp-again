@@ -174,9 +174,9 @@ router.post('/get-groups', async (req, res) => {
 // Get contacts from specific WhatsApp groups
 router.post('/get-group-contacts', async (req, res) => {
     try {
-        const { clientId, groups, userId } = req.body;
+        const { clientId, groups } = req.body;
 
-        if (!clientId || !groups || !Array.isArray(groups) || !userId) {
+        if (!clientId || !groups || !Array.isArray(groups) ) {
             return res.status(400).json({ message: 'clientId, groupIds array, and userId are required' });
         }
 
@@ -205,7 +205,7 @@ router.post('/get-group-contacts', async (req, res) => {
         });
 
         // Process contacts asynchronously
-        processGroupContactsAsync(clientId, groups, userId);
+        processGroupContactsAsync(clientId, groups);
 
     } catch (error) {
         console.error('Error fetching group contacts:', error);
@@ -214,7 +214,7 @@ router.post('/get-group-contacts', async (req, res) => {
 });
 
 // Async function to process contacts and send to webhook
-async function processGroupContactsAsync(clientId, groupIds, userId) {
+async function processGroupContactsAsync(clientId, groupIds) {
     try {
         const client = activeClients[clientId];
         if (!client) {
@@ -259,7 +259,7 @@ async function processGroupContactsAsync(clientId, groupIds, userId) {
         // Send results to webhook endpoint
         const webhookUrl = `${process.env.MAIN_BACKEND_URL}/api/webhooks/group-contacts-processed`;
         const webhookData = {
-            userId: userId,
+            clientId: clientId,
             contacts: allContacts,
             groupIds: groupIds,
             auth: process.env.VPS_KEY

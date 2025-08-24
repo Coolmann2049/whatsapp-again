@@ -501,16 +501,18 @@ router.post('/process-incoming-message', async (req, res) => {
 // Webhook endpoint to receive group contacts processing completion from VPS
 router.post('/group-contacts-processed', async (req, res) => {
     try {
-        const { userId, contacts, groupIds, auth } = req.body;
+        const { clientId, contacts, groupIds , auth } = req.body;
 
         if (auth !== process.env.VPS_KEY) {
             return res.status(401).json({ message: 'Unauthorized' });
         }
 
-        if (!userId || !contacts || !Array.isArray(contacts)) {
+        if (!clientId || !contacts || !Array.isArray(contacts)) {
             return res.status(400).json({ message: 'userId and contacts array are required' });
         }
 
+        const userId = clientId.split('_')[0];
+        
         // Find the user
         const user = await UserID.findByPk(userId);
         if (!user) {
