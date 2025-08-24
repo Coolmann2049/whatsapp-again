@@ -5,6 +5,122 @@ document.addEventListener('DOMContentLoaded', () => {
     let availableDevices = [];
     let availableGroups = [];
     let selectedDeviceId = null;
+    let socket = null;
+
+    // --- SOCKET.IO INITIALIZATION ---
+    const initializeSocket = () => {
+        socket = io();
+        
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
+        
+        socket.on('uploadProgress', (data) => {
+             updateUploadProgress(data);
+         });
+         
+         socket.on('uploadComplete', (data) => {
+             handleUploadComplete(data);
+         });
+         
+         socket.on('uploadError', (data) => {
+             handleUploadError(data);
+         });
+         
+         // Group import specific events
+         socket.on('group-contacts-imported', (data) => {
+             handleGroupImportComplete(data);
+         });
+         
+         socket.on('group-contacts-error', (data) => {
+             handleGroupImportError(data);
+         });
+    };
+    
+    const updateUploadProgress = (data) => {
+        const fileEntry = uploadHistory.find(f => f.id === data.uploadId);
+        if (fileEntry) {
+            fileEntry.status = 'Processing';
+            fileEntry.total_contacts = `${data.processed || 0}/${data.total || '?'}`;
+            renderUploadHistory();
+        }
+    };
+    
+    const handleUploadComplete = (data) => {
+        const fileEntry = uploadHistory.find(f => f.id === data.uploadId);
+        if (fileEntry) {
+            fileEntry.status = 'Completed';
+            fileEntry.total_contacts = data.totalContacts;
+            renderUploadHistory();
+        }
+    };
+    
+    const handleUploadError = (data) => {
+         const fileEntry = uploadHistory.find(f => f.id === data.uploadId);
+         if (fileEntry) {
+             fileEntry.status = 'Failed';
+             fileEntry.total_contacts = 0;
+             renderUploadHistory();
+         }
+         alert(`Upload failed: ${data.error}`);
+     };
+     
+     // Group import event handlers
+     const handleGroupImportComplete = (data) => {
+         const progressElement = document.getElementById('import-progress');
+         const statusElement = document.getElementById('import-status');
+         
+         if (progressElement && statusElement) {
+             progressElement.style.display = 'none';
+             statusElement.innerHTML = `
+                 <div class="alert alert-success">
+                     <i class="bi bi-check-circle me-2"></i>
+                     Successfully imported ${data.totalContacts} contacts from ${data.groupNames.join(', ')}
+                     ${data.duplicatesRemoved > 0 ? `<br><small class="text-muted">${data.duplicatesRemoved} duplicates were removed</small>` : ''}
+                 </div>
+             `;
+         }
+         
+         // Refresh upload history
+         fetchUploadHistory();
+         
+         // Auto-hide modal after 3 seconds
+         setTimeout(() => {
+             const modal = bootstrap.Modal.getInstance(document.getElementById('groupImportModal'));
+             if (modal) {
+                 modal.hide();
+                 resetGroupImportModal();
+             }
+         }, 3000);
+     };
+     
+     const handleGroupImportError = (data) => {
+         const progressElement = document.getElementById('import-progress');
+         const statusElement = document.getElementById('import-status');
+         
+         if (progressElement && statusElement) {
+             progressElement.style.display = 'none';
+             statusElement.innerHTML = `
+                 <div class="alert alert-danger">
+                     <i class="bi bi-exclamation-triangle me-2"></i>
+                     Failed to import contacts: ${data.message}
+                 </div>
+             `;
+         }
+     };
+     
+     const resetGroupImportModal = () => {
+         showStep('device-selection');
+         selectedDeviceId = null;
+         availableGroups = [];
+         document.getElementById('import-status').innerHTML = '';
+         document.getElementById('import-progress').style.display = 'none';
+         updateImportButtonState();
+     };
 
     // --- DOM REFERENCES ---
     const fileListBody = document.getElementById('file-list-body');
@@ -237,6 +353,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const importGroupContacts = async (selectedGroups) => {
         try {
+            // Show progress step
+            showStep(importProgressStep);
+            
+            const progressElement = document.getElementById('import-progress');
+            const statusElement = document.getElementById('import-status');
+            
+            if (progressElement && statusElement) {
+                progressElement.style.display = 'block';
+                statusElement.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        <span>Initiating contact import...</span>
+                    </div>
+                `;
+            }
+
             const response = await fetch('/api/data/import-group-contacts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -245,13 +377,49 @@ document.addEventListener('DOMContentLoaded', () => {
                     groups: selectedGroups
                 })
             });
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || 'Import failed');
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                // Update status to show processing
+                if (statusElement) {
+                    statusElement.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            <span>${data.message || 'Processing contacts...'}</span>
+                        </div>
+                    `;
+                }
+                
+                // Socket.IO will handle the completion notification
+                // No need to close modal here - it will be handled by the socket event
+                return data;
+            } else {
+                if (progressElement && statusElement) {
+                    progressElement.style.display = 'none';
+                    statusElement.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            ${data.error || 'Failed to import contacts'}
+                        </div>
+                    `;
+                }
+                throw new Error(data.error || 'Import failed');
             }
-            return await response.json();
         } catch (error) {
             console.error('Error importing contacts:', error);
+            const progressElement = document.getElementById('import-progress');
+            const statusElement = document.getElementById('import-status');
+            
+            if (progressElement && statusElement) {
+                progressElement.style.display = 'none';
+                statusElement.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        An error occurred while importing contacts
+                    </div>
+                `;
+            }
             throw error;
         }
     };
@@ -294,7 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="d-flex w-100 justify-content-between">
                                 <div>
                                     <h6 class="mb-1">${group.name}</h6>
-                                    <p class="mb-1 text-muted small">${group.participants || 0} participants</p>
+                                    <p class="mb-1 text-muted small">${group.participantCount || 0} participants</p>
                                 </div>
                             </div>
                         </label>
@@ -466,5 +634,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- INITIAL FETCH ---
+    initializeSocket();
     fetchInitialData();
 });

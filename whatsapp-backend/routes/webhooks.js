@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { UserID, AiConfiguration, DialogFlows, UserUsage, Campaign, MessageTemplate, CampaignContacts, Contact, ChatMessage, Conversation } = require('../models');
+const { UserID, AiConfiguration, DialogFlows, UserUsage, Campaign, UploadHistory, MessageTemplate, CampaignContacts, Contact, ChatMessage, Conversation } = require('../models');
 const { generateAiResponse, sendEmail } = require('./services/aiServices');
 const dotenv = require('dotenv');
 
@@ -498,5 +498,92 @@ router.post('/process-incoming-message', async (req, res) => {
 });
 
 
+// Webhook endpoint to receive group contacts processing completion from VPS
+router.post('/group-contacts-processed', async (req, res) => {
+    try {
+        const { userId, contacts, groupIds, auth } = req.body;
+
+        if (auth !== process.env.VPS_KEY) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+        if (!userId || !contacts || !Array.isArray(contacts)) {
+            return res.status(400).json({ message: 'userId and contacts array are required' });
+        }
+
+        // Find the user
+        const user = await UserID.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Create upload history record first
+        const groupNames = [...new Set(contacts.map(c => c.groupName))].join(', ');
+        const uploadHistory = await UploadHistory.create({
+            userId: userId,
+            fileName: `WhatsApp Groups: ${groupNames}`,
+            contactCount: 0, // Will be updated after contact insertion
+            uploadDate: new Date()
+        });
+
+        // Remove duplicates based on phone number
+        const uniqueContacts = [];
+        const seenPhones = new Set();
+        
+        for (const contact of contacts) {
+            if (!seenPhones.has(contact.phone)) {
+                seenPhones.add(contact.phone);
+                uniqueContacts.push({
+                    name: contact.name,
+                    phone: contact.phone,
+                    userId: userId,
+                    uploadHistoryId: uploadHistory.id
+                });
+            }
+        }
+
+        // Bulk insert contacts into database
+        if (uniqueContacts.length > 0) {
+            await Contact.bulkCreate(uniqueContacts, {
+                ignoreDuplicates: true
+            });
+
+            // Update upload history with final count
+            await uploadHistory.update({
+                contactCount: uniqueContacts.length
+            });
+        }
+
+        // Emit Socket.IO event to notify frontend
+        const io = req.io;
+        io.to(String(userId)).emit('group-contacts-imported', {
+            success: true,
+            totalContacts: uniqueContacts.length,
+            duplicatesRemoved: contacts.length - uniqueContacts.length,
+            groupNames: [...new Set(contacts.map(c => c.groupName))]
+        });
+
+        console.log(`Successfully imported ${uniqueContacts.length} contacts for user ${userId}`);
+        res.status(200).json({ 
+            message: 'Contacts processed successfully',
+            imported: uniqueContacts.length,
+            duplicatesRemoved: contacts.length - uniqueContacts.length
+        });
+
+    } catch (error) {
+        console.error('Error processing group contacts:', error);
+        
+        // Emit error event to frontend
+        if (req.body.userId) {
+            const io = req.io;
+            io.to(String(req.body.userId)).emit('group-contacts-error', {
+                success: false,
+                message: 'Failed to process contacts'
+            });
+        }
+        
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
 
 module.exports = router;

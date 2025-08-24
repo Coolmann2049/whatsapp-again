@@ -171,74 +171,121 @@ router.post('/get-groups', async (req, res) => {
     }
 });
 
-// POST: Get contacts from a specific WhatsApp group
+// Get contacts from specific WhatsApp groups
 router.post('/get-group-contacts', async (req, res) => {
     try {
-        const { clientId, groupId } = req.body;
-        
-        if (!clientId || !groupId) {
-            return res.status(400).json({ error: 'clientId and groupId are required' });
+        const { clientId, groups, userId } = req.body;
+
+        if (!clientId || !groups || !Array.isArray(groups) || !userId) {
+            return res.status(400).json({ message: 'clientId, groupIds array, and userId are required' });
         }
 
         const client = activeClients[clientId];
         if (!client) {
-            return res.status(404).json({ error: 'Client not found or not connected' });
-        }
-        console.log(groupId);
-        console.log('Type of groupId:', typeof groupId);
-
-        // Get the specific chat/group
-        const chat = await client.getChatById(groupId.id);
-        if (!chat || !chat.isGroup) {
-            return res.status(404).json({ error: 'Group not found' });
+            return res.status(404).json({ message: 'Client not found' });
         }
 
-        // Get group participants
-        const participants = chat.participants || [];
-        const contacts = [];
-
-        for (const participant of participants) {
+        // Count total participants across all groups for immediate response
+        let totalParticipants = 0;
+        for (const groupId of groups) {
             try {
-                console.log(participant);
-                // Get contact info for each participant
-                const contact = await client.getContactById(participant.id._serialized);
-                console.log(contact);
-                // Extract phone number (remove @c.us suffix)
-                const phoneNumber = participant.id.user;
-                
-                contacts.push({
-                    phone: phoneNumber,
-                    name: contact.name || contact.pushname || '',
-                    pushname: contact.pushname || '',
-                    isMe: participant.id._serialized === client.info.wid._serialized
-                });
-            } catch (contactError) {
-                console.error(`Error getting contact info for ${participant.id._serialized}:`, contactError);
-                // Still add the contact with minimal info
-                contacts.push({
-                    phone: participant.id.user,
-                    name: '',
-                    pushname: '',
-                    isMe: participant.id._serialized === client.info.wid._serialized
-                });
+                const chat = await client.getChatById(groupId);
+                if (chat.isGroup) {
+                    totalParticipants += chat.participants.length;
+                }
+            } catch (error) {
+                console.error(`Error counting participants in group ${groupId}:`, error);
             }
         }
 
-        // Filter out the user's own contact
-        const filteredContacts = contacts.filter(contact => !contact.isMe);
-
-        res.json({
-            success: true,
-            groupName: chat.name,
-            groupId: groupId,
-            contacts: filteredContacts,
-            totalContacts: filteredContacts.length
+        // Send immediate response
+        res.status(200).json({ 
+            message: `Found ${totalParticipants} contacts across ${groups.length} groups. Fetching and processing contact details...`,
+            totalContacts: totalParticipants
         });
+
+        // Process contacts asynchronously
+        processGroupContactsAsync(clientId, groups, userId);
 
     } catch (error) {
         console.error('Error fetching group contacts:', error);
-        res.status(500).json({ error: 'Failed to fetch group contacts' });
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
+
+// Async function to process contacts and send to webhook
+async function processGroupContactsAsync(clientId, groupIds, userId) {
+    try {
+        const client = activeClients[clientId];
+        if (!client) {
+            console.error('Client not found during async processing');
+            return;
+        }
+
+        const allContacts = [];
+        
+        for (const groupId of groupIds) {
+            try {
+                const chat = await client.getChatById(groupId);
+                if (chat.isGroup) {
+                    const participants = chat.participants;
+                    
+                    for (const participant of participants) {
+                        try {
+                            const contact = await client.getContactById(participant.id._serialized);
+                            allContacts.push({
+                                name: contact.name || contact.pushname || participant.id.user,
+                                phone: participant.id.user,
+                                groupName: chat.name,
+                                groupId: groupId
+                            });
+                        } catch (contactError) {
+                            console.error(`Error fetching contact ${participant.id.user}:`, contactError);
+                            // Add contact with minimal info if detailed fetch fails
+                            allContacts.push({
+                                name: participant.id.user,
+                                phone: participant.id.user,
+                                groupName: chat.name,
+                                groupId: groupId
+                            });
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(`Error fetching contacts from group ${groupId}:`, error);
+            }
+        }
+
+        // Send results to webhook endpoint
+        const webhookUrl = `${process.env.MAIN_BACKEND_URL}/api/webhooks/group-contacts-processed`;
+        const webhookData = {
+            userId: userId,
+            contacts: allContacts,
+            groupIds: groupIds,
+            auth: process.env.VPS_KEY
+        };
+
+        try {
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(webhookData)
+            });
+
+            if (!response.ok) {
+                console.error('Failed to send webhook notification:', response.statusText);
+            } else {
+                console.log(`Successfully processed ${allContacts.length} contacts and sent to webhook`);
+            }
+        } catch (webhookError) {
+            console.error('Error sending webhook notification:', webhookError);
+        }
+
+    } catch (error) {
+        console.error('Error in async contact processing:', error);
+    }
+}
 
 module.exports = router;

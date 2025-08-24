@@ -816,92 +816,59 @@ router.get('/groups/:clientId', async (req, res) => {
     }
 });
 
-// POST: Import contacts from selected WhatsApp groups
+// POST: Import contacts from selected WhatsApp groups (Socket.IO workflow)
 router.post('/import-group-contacts', async (req, res) => {
     try {
-        const { clientId, groups } = req.body;
-        const { userId } = req.session;
+        const { deviceId, groupIds } = req.body;
+        const userId = req.session.userId;
 
-        if (!userId || !clientId || !groups || !Array.isArray(groups)) {
-            return res.status(400).json({ message: 'User ID, Device ID, and Group IDs are required.' });
+        if (!deviceId || !groupIds || !Array.isArray(groupIds)) {
+            return res.status(400).json({ message: 'Device ID and group IDs are required' });
         }
 
-        let allContacts = [];
-        let groupNames = [];
-
-        // Fetch contacts from each selected group
-        for (const groupId of groups) {
-            const response = await fetch(`${process.env.VPS_URL}/api/get-group-contacts`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    clientId: clientId,
-                    groupId: groupId,
-                    auth: process.env.VPS_KEY
-                })
-            });
-
-            if (!response.ok) {
-                console.error(`Failed to fetch contacts for group ${groupId}`);
-                continue;
-            }
-
-            const groupData = await response.json();
-            if (groupData.contacts && groupData.contacts.length > 0) {
-                allContacts = allContacts.concat(groupData.contacts);
-                groupNames.push(groupData.groupName || `Group ${groupId}`);
-            }
+        // Get user's device data to find the clientId
+        const user = await UserID.findByPk(userId);
+        if (!user || !user.devices_data) {
+            return res.status(404).json({ message: 'User or device data not found' });
         }
 
-        if (allContacts.length === 0) {
-            return res.status(400).json({ message: 'No contacts found in selected groups.' });
+        const devices = JSON.parse(user.devices_data);
+        const device = devices.find(d => d.id === deviceId);
+        if (!device) {
+            return res.status(404).json({ message: 'Device not found' });
         }
 
-        // Create upload history record
-        const historyRecord = await UploadHistory.create({
-            file_name: `WhatsApp Groups: ${groupNames.join(', ')}`,
-            status: 'Processing',
-            userId: userId
+        // Request contacts from VPS (async processing)
+        const vpsResponse = await fetch(`${process.env.VPS_URL}/get-group-contacts`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                clientId: device.clientId,
+                groups: groupIds,
+                userId: userId,
+                auth: process.env.VPS_KEY
+            })
         });
 
-        // Prepare contacts for database insertion
-        const contactsToInsert = allContacts.map(contact => ({
-            name: contact.name || contact.pushname || '',
-            phone: contact.phone,
-            email: '',
-            company: '',
-            userId: userId,
-            uploadHistoryId: historyRecord.id,
-            is_deleted: false
-        }));
+        if (!vpsResponse.ok) {
+            const errorData = await vpsResponse.json();
+            return res.status(vpsResponse.status).json({ message: errorData.message || 'Failed to fetch contacts from VPS' });
+        }
 
-        // Remove duplicates based on phone number
-        const uniqueContacts = contactsToInsert.filter((contact, index, self) => 
-            index === self.findIndex(c => c.phone === contact.phone)
-        );
-
-        // Bulk insert contacts
-        await Contact.bulkCreate(uniqueContacts, {
-            updateOnDuplicate: ["name", "email", "company", "is_deleted"]
-        });
-
-        // Update history record
-        await historyRecord.update({
-            status: 'Completed',
-            total_contacts: uniqueContacts.length
-        });
-
+        const vpsData = await vpsResponse.json();
+        
+        // Return immediate response - VPS will process contacts asynchronously
         res.json({
-            success: true,
-            message: `Successfully imported ${uniqueContacts.length} contacts from ${groupNames.length} groups.`,
-            contactsProcessed: uniqueContacts.length,
-            groupsProcessed: groupNames.length,
-            historyRecord: historyRecord.toJSON()
+            message: vpsData.message,
+            totalContacts: vpsData.totalContacts,
+            processing: true
         });
 
     } catch (error) {
         console.error('Error importing group contacts:', error);
-        res.status(500).json({ error: 'Failed to import contacts from groups' });
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
