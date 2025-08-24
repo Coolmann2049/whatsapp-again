@@ -819,23 +819,10 @@ router.get('/groups/:clientId', async (req, res) => {
 // POST: Import contacts from selected WhatsApp groups (Socket.IO workflow)
 router.post('/import-group-contacts', async (req, res) => {
     try {
-        const { deviceId, groupIds } = req.body;
-        const userId = req.session.userId;
+        const { clientId, groups } = req.body;
 
-        if (!deviceId || !groupIds || !Array.isArray(groupIds)) {
+        if (!clientId || !groups || !Array.isArray(groups)) {
             return res.status(400).json({ message: 'Device ID and group IDs are required' });
-        }
-
-        // Get user's device data to find the clientId
-        const user = await UserID.findByPk(userId);
-        if (!user || !user.devices_data) {
-            return res.status(404).json({ message: 'User or device data not found' });
-        }
-
-        const devices = JSON.parse(user.devices_data);
-        const device = devices.find(d => d.id === deviceId);
-        if (!device) {
-            return res.status(404).json({ message: 'Device not found' });
         }
 
         // Request contacts from VPS (async processing)
@@ -845,9 +832,8 @@ router.post('/import-group-contacts', async (req, res) => {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                clientId: device.clientId,
-                groups: groupIds,
-                userId: userId,
+                clientId: clientId,
+                groups: groups,
                 auth: process.env.VPS_KEY
             })
         });
