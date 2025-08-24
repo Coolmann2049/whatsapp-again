@@ -826,7 +826,7 @@ router.post('/import-group-contacts', async (req, res) => {
         }
 
         // Request contacts from VPS (async processing)
-        const vpsResponse = await fetch(`${process.env.VPS_URL}/get-group-contacts`, {
+        const vpsResponse = await fetch(`${process.env.VPS_URL}/api/get-group-contacts`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
