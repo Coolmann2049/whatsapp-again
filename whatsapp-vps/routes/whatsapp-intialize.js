@@ -177,7 +177,7 @@ router.post('/get-group-contacts', async (req, res) => {
         const { clientId, groups } = req.body;
 
         if (!clientId || !groups || !Array.isArray(groups) ) {
-            return res.status(400).json({ message: 'clientId, groupIds array, and userId are required' });
+            return res.status(400).json({ message: 'clientId, groupIds array, are required on vps' });
         }
 
         const client = activeClients[clientId];
