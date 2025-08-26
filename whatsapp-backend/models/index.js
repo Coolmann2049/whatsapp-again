@@ -5,6 +5,7 @@ const path = require('path');
 const sequelize = new Sequelize('u737067433_agent','u737067433_agent','YASH.deep.o3o9rocks()', {
   host: 'srv663.hstgr.io',
   dialect: 'mysql',
+  logging: false, 
   port: 3306,
   pool: {
     max: 5,

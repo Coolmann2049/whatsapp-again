@@ -257,7 +257,7 @@ async function processGroupContactsAsync(clientId, groupIds) {
         }
 
         // Send results to webhook endpoint
-        const webhookUrl = `${process.env.MAIN_BACKEND_URL}/api/webhooks/group-contacts-processed`;
+        const webhookUrl = `${process.env.MAIN_BACKEND_URL}/api/webhook/group-contacts-processed`;
         const webhookData = {
             clientId: clientId,
             contacts: allContacts,
