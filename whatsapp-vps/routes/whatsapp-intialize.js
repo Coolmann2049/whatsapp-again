@@ -216,6 +216,7 @@ router.post('/get-group-contacts', async (req, res) => {
 // Async function to process contacts and send to webhook
 async function processGroupContactsAsync(clientId, groupIds) {
     try {
+        console.log(groupIds);
         const client = activeClients[clientId];
         if (!client) {
             console.error('Client not found during async processing');
