@@ -227,7 +227,7 @@ async function processGroupContactsAsync(clientId, groupIds) {
         
         for (const groupId of groupIds) {
             try {
-                const chat = await client.getChatById(groupId);
+                const chat = await client.getChatById(groupId.id);
                 console.log(chat.participants);
                 if (chat.isGroup) {
                     const participants = chat.participants;
