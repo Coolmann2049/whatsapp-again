@@ -501,7 +501,7 @@ router.post('/process-incoming-message', async (req, res) => {
 // Webhook endpoint to receive group contacts processing completion from VPS
 router.post('/group-contacts-processed', async (req, res) => {
     try {
-        const { clientId, contacts, groupIds , auth } = req.body;
+        const { clientId, contacts, groupIds , auth, groupNames} = req.body;
 
         if (auth !== process.env.VPS_KEY) {
             return res.status(401).json({ message: 'Unauthorized' });
@@ -520,7 +520,6 @@ router.post('/group-contacts-processed', async (req, res) => {
         }
 
         // Create upload history record first
-        const groupNames = [...new Set(contacts.map(c => c.groupName))].join(', ');
         console.log(groupNames);
         const uploadHistory = await UploadHistory.create({
             userId: userId,

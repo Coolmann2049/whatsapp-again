@@ -228,7 +228,6 @@ async function processGroupContactsAsync(clientId, groupIds) {
         for (const groupId of groupIds) {
             try {
                 const chat = await client.getChatById(groupId.id);
-                console.log(chat.participants);
                 if (chat.isGroup) {
                     const participants = chat.participants;
                     
@@ -258,6 +257,7 @@ async function processGroupContactsAsync(clientId, groupIds) {
                 console.error(`Error fetching contacts from group ${groupId}:`, error);
             }
         }
+        const groupNames = [...new Set(groupIds.map(c => c.name))].join(', ');
 
         // Send results to webhook endpoint
         const webhookUrl = `${process.env.MAIN_BACKEND_URL}/api/webhook/group-contacts-processed`;
@@ -265,7 +265,8 @@ async function processGroupContactsAsync(clientId, groupIds) {
             clientId: clientId,
             contacts: allContacts,
             groupIds: groupIds,
-            auth: process.env.VPS_KEY
+            auth: process.env.VPS_KEY,
+            groupNames
         };
 
         try {
