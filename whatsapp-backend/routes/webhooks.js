@@ -521,6 +521,7 @@ router.post('/group-contacts-processed', async (req, res) => {
 
         // Create upload history record first
         const groupNames = [...new Set(contacts.map(c => c.groupName))].join(', ');
+        console.log(groupNames);
         const uploadHistory = await UploadHistory.create({
             userId: userId,
             fileName: `WhatsApp Groups: ${groupNames}`,

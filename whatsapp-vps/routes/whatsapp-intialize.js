@@ -227,6 +227,7 @@ async function processGroupContactsAsync(clientId, groupIds) {
         for (const groupId of groupIds) {
             try {
                 const chat = await client.getChatById(groupId);
+                console.log(chat.participants);
                 if (chat.isGroup) {
                     const participants = chat.participants;
                     
@@ -239,6 +240,7 @@ async function processGroupContactsAsync(clientId, groupIds) {
                                 groupName: chat.name,
                                 groupId: groupId
                             });
+                            console.log(contact);
                         } catch (contactError) {
                             console.error(`Error fetching contact ${participant.id.user}:`, contactError);
                             // Add contact with minimal info if detailed fetch fails
