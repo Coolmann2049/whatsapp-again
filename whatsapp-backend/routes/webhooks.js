@@ -523,7 +523,8 @@ router.post('/group-contacts-processed', async (req, res) => {
         console.log(groupNames);
         const uploadHistory = await UploadHistory.create({
             userId: userId,
-            fileName: `WhatsApp Groups: ${groupNames}`,
+            file_name: `WhatsApp Groups: ${groupNames}`,
+            status: 'Processing',
             contactCount: 0, // Will be updated after contact insertion
             uploadDate: new Date()
         });
