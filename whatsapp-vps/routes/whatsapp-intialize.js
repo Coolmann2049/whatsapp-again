@@ -232,13 +232,14 @@ async function processGroupContactsAsync(clientId, groupIds) {
                     for (const participant of participants) {
                         try {
                             let phoneNumber = participant.id.user;
-                            
+                            console.log(phoneNumber);
                             // Check if it's a valid 12-digit number starting with 91
                             if (!(phoneNumber.length === 12 && phoneNumber.startsWith('91'))) {
                                 // Use getNumberId to resolve the actual phone number
                                 const numberId = await client.getNumberId(participant.id._serialized);
                                 if (numberId && numberId.user) {
                                     phoneNumber = numberId.user;
+                                    console.log(`Corrected: ${phoneNumber}`);
                                 }
                             }
                             
