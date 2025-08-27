@@ -216,10 +216,8 @@ router.post('/get-group-contacts', async (req, res) => {
 // Async function to process contacts and send to webhook
 async function processGroupContactsAsync(clientId, groupIds) {
     try {
-        console.log(groupIds);
         const client = activeClients[clientId];
         if (!client) {
-            console.error('Client not found during async processing');
             return;
         }
 
@@ -232,29 +230,17 @@ async function processGroupContactsAsync(clientId, groupIds) {
                     const participants = chat.participants;
                     
                     for (const participant of participants) {
-                        try {
-                            const contact = await client.getContactById(participant.id._serialized);
-                            allContacts.push({
-                                name: contact.name || contact.pushname || participant.id.user,
-                                phone: participant.id.user,
-                                groupName: chat.name,
-                                groupId: groupId
-                            });
-                            console.log(contact);
-                        } catch (contactError) {
-                            console.error(`Error fetching contact ${participant.id.user}:`, contactError);
-                            // Add contact with minimal info if detailed fetch fails
-                            allContacts.push({
-                                name: participant.id.user,
-                                phone: participant.id.user,
-                                groupName: chat.name,
-                                groupId: groupId
-                            });
-                        }
+                        console.log(participant.id.user);
+                        allContacts.push({
+                            name: "",
+                            phone: participant.id.user,
+                            groupName: "",
+                            groupId: groupId
+                        });
                     }
                 }
             } catch (error) {
-                console.error(`Error fetching contacts from group ${groupId}:`, error);
+                // Skip group if error occurs
             }
         }
         const groupNames = [...new Set(groupIds.map(c => c.name))].join(', ');
@@ -277,18 +263,12 @@ async function processGroupContactsAsync(clientId, groupIds) {
                 },
                 body: JSON.stringify(webhookData)
             });
-
-            if (!response.ok) {
-                console.error('Failed to send webhook notification:', response.statusText);
-            } else {
-                console.log(`Successfully processed ${allContacts.length} contacts and sent to webhook`);
-            }
         } catch (webhookError) {
-            console.error('Error sending webhook notification:', webhookError);
+            // Webhook error - silent fail
         }
 
     } catch (error) {
-        console.error('Error in async contact processing:', error);
+        // Processing error - silent fail
     }
 }
 
