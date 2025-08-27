@@ -230,17 +230,32 @@ async function processGroupContactsAsync(clientId, groupIds) {
                     const participants = chat.participants;
                     
                     for (const participant of participants) {
-                        console.log(participant.id.user);
-                        allContacts.push({
-                            name: "",
-                            phone: participant.id.user,
-                            groupName: "",
-                            groupId: groupId
-                        });
+                        try {
+                            let phoneNumber = participant.id.user;
+                            
+                            // Check if it's a valid 12-digit number starting with 91
+                            if (!(phoneNumber.length === 12 && phoneNumber.startsWith('91'))) {
+                                // Use getNumberId to resolve the actual phone number
+                                const numberId = await client.getNumberId(participant.id._serialized);
+                                if (numberId && numberId.user) {
+                                    phoneNumber = numberId.user;
+                                }
+                            }
+                            
+                            console.log(phoneNumber);
+                            allContacts.push({
+                                name: "",
+                                phone: phoneNumber,
+                                groupName: "",
+                                groupId: groupId
+                            });
+                        } catch (error) {
+                            console.error(`Error processing participant ${participant.id.user}:`, error);
+                        }
                     }
                 }
             } catch (error) {
-                // Skip group if error occurs
+                console.error(`Error fetching contacts from group ${groupId}:`, error);
             }
         }
         const groupNames = [...new Set(groupIds.map(c => c.name))].join(', ');
@@ -264,11 +279,11 @@ async function processGroupContactsAsync(clientId, groupIds) {
                 body: JSON.stringify(webhookData)
             });
         } catch (webhookError) {
-            // Webhook error - silent fail
+            console.error('Error sending webhook notification:', webhookError);
         }
 
     } catch (error) {
-        // Processing error - silent fail
+        console.error('Error in async contact processing:', error);
     }
 }
 
